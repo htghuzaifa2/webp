@@ -1,11 +1,14 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/header';
 import { ImageConversionCard } from '@/components/image-conversion-card';
 import { ImageUploader } from '@/components/image-uploader';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
+import { Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface ImageFile {
