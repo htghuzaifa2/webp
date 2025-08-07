@@ -14,7 +14,7 @@ import { ImageUploader } from '@/components/image-uploader';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import JSZip from 'jszip';
-import { Download, Sparkles, Trash2, Archive } from 'lucide-react';
+import { Archive, Download, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface ImageFile {
@@ -31,7 +31,7 @@ export interface ImageFile {
 
 async function convertToWebp(
   file: File,
-  quality = 1.0
+  quality = 0.9
 ): Promise<{ url: string; size: number }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -92,7 +92,7 @@ export default function Home() {
           const img = new Image();
           img.onload = () => {
             resolve({ width: img.width, height: img.height });
-            URL.revokeObjectURL(img.src);
+            URL.revokeObjectURL(img.src); // Revoke here after getting dimensions
           };
           img.src = URL.createObjectURL(file);
         });
@@ -100,7 +100,7 @@ export default function Home() {
         return {
           id: crypto.randomUUID(),
           file,
-          originalUrl: URL.createObjectURL(file),
+          originalUrl: URL.createObjectURL(file), // Create a fresh URL for display
           originalSize: file.size,
           status: 'pending',
           dimensions,
@@ -158,7 +158,7 @@ export default function Home() {
     processQueue();
   }, [images, processQueue]);
 
-  // Effect for cleaning up Object URLs
+  // Effect for cleaning up Object URLs when the component unmounts
   useEffect(() => {
     return () => {
       images.forEach((image) => {
@@ -170,9 +170,16 @@ export default function Home() {
         }
       });
     };
-  }, [images]);
+    // This effect should only run once on unmount, so we pass an empty dependency array.
+    // The `images` array is available in the closure.
+  }, []);
 
   const clearAll = () => {
+    // Before clearing the state, revoke any existing URLs
+    images.forEach((image) => {
+      if (image.originalUrl) URL.revokeObjectURL(image.originalUrl);
+      if (image.convertedUrl) URL.revokeObjectURL(image.convertedUrl);
+    });
     setImages([]);
   };
 
