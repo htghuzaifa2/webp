@@ -36,29 +36,39 @@ async function getImageDimensions(
 }
 
 async function convertToWebp(
-  image: HTMLImageElement,
+  file: File,
   quality: number
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return reject(new Error('Could not get canvas context'));
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Could not get canvas context'));
 
-    try {
-      ctx.drawImage(image, 0, 0);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return reject(new Error('Canvas toBlob failed'));
-          resolve(blob);
-        },
-        'image/webp',
-        quality / 100
-      );
-    } catch(e) {
-      reject(e);
-    }
+        try {
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) return reject(new Error('Canvas toBlob failed'));
+              resolve(blob);
+            },
+            'image/webp',
+            quality / 100
+          );
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
   });
 }
 
@@ -103,18 +113,7 @@ export default function Home() {
         const dimensions = await getImageDimensions(imageFile.originalUrl);
         updateImageState(imageFile.id, { dimensions });
 
-        const imageElement = new Image();
-        
-        const imageLoaded = new Promise((resolve, reject) => {
-          imageElement.onload = resolve;
-          imageElement.onerror = reject;
-        });
-
-        imageElement.src = imageFile.originalUrl;
-        
-        await imageLoaded;
-        
-        const convertedBlob = await convertToWebp(imageElement, conversionQuality);
+        const convertedBlob = await convertToWebp(imageFile.file, conversionQuality);
         const convertedUrl = URL.createObjectURL(convertedBlob);
 
         updateImageState(imageFile.id, {
