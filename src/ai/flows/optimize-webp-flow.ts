@@ -9,7 +9,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const OptimizeWebpInputSchema = z.object({
+const OptimizeWebpInputSchema = z.object({
   photoDataUri: z
     .string()
     .describe(
