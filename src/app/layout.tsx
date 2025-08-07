@@ -26,12 +26,13 @@ export const metadata: Metadata = {
     description:
       'Convert images to WebP online. Free, fast, and private image optimization.',
     url: 'https://webp.huzi.pk',
-    siteName: 'WebP Optimizer',
+    siteName: 'webp.huzi.pk',
     images: [
       {
-        url: 'https://webp.huzi.pk/og-image.png', // It's good practice to have an OG image
+        url: 'https://placehold.co/1200x630.png',
         width: 1200,
         height: 630,
+        alt: 'WebP Converter & Optimizer',
       },
     ],
     locale: 'en_US',
@@ -42,9 +43,14 @@ export const metadata: Metadata = {
     title: 'WebP Converter & Optimizer - webp.huzi.pk',
     description:
       'Convert images to WebP online. Free, fast, and private image optimization.',
-    // creator: "@yourtwitterhandle", // Optional: add your twitter handle
-    images: ['https://webp.huzi.pk/og-image.png'],
+    images: ['https://placehold.co/1200x630.png'],
   },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({
