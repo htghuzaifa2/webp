@@ -39,42 +39,38 @@ async function convertToWebp(
   file: File,
   quality: number
 ): Promise<Blob> {
+  // Using createImageBitmap for a more robust and efficient way to get image data.
+  const imageBitmap = await createImageBitmap(file);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = imageBitmap.width;
+  canvas.height = imageBitmap.height;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Failed to get canvas context.');
+  }
+
+  ctx.drawImage(imageBitmap, 0, 0);
+  
+  // Close the bitmap to free up memory
+  imageBitmap.close();
+
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (readerEvent) => {
-      const image = new Image();
-      image.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = image.width;
-        canvas.height = image.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return reject(new Error('Failed to get canvas context.'));
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Canvas toBlob returned null. This can happen if the image is too large.'));
         }
-        ctx.drawImage(image, 0, 0);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Canvas toBlob returned null.'));
-            }
-          },
-          'image/webp',
-          quality / 100
-        );
-      };
-      image.onerror = () => reject(new Error('Image failed to load.'));
-      if (readerEvent.target?.result) {
-        image.src = readerEvent.target.result as string;
-      } else {
-        reject(new Error('FileReader failed to read file.'));
-      }
-    };
-    reader.onerror = () => reject(new Error('FileReader error.'));
-    reader.readAsDataURL(file);
+      },
+      'image/webp',
+      quality / 100
+    );
   });
 }
+
 
 export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -114,6 +110,7 @@ export default function Home() {
       try {
         updateImageState(imageFile.id, { status: 'converting' });
 
+        // Get dimensions first
         const dimensions = await getImageDimensions(imageFile.originalUrl);
         updateImageState(imageFile.id, { dimensions });
 
@@ -143,17 +140,22 @@ export default function Home() {
   );
 
   useEffect(() => {
-    images.forEach(image => {
-      if (image.status === 'pending') {
+    const pendingImages = images.filter(image => image.status === 'pending');
+    if (pendingImages.length > 0) {
+      pendingImages.forEach(image => {
         processImage(image, quality);
-      }
-    });
+      });
+    }
   }, [images, processImage, quality]);
   
+  // Effect for cleaning up Object URLs
   useEffect(() => {
+    // This function will be called when the component unmounts
     return () => {
       images.forEach(image => {
-        URL.revokeObjectURL(image.originalUrl);
+        if (image.originalUrl) {
+          URL.revokeObjectURL(image.originalUrl);
+        }
         if (image.convertedUrl) {
           URL.revokeObjectURL(image.convertedUrl);
         }
@@ -164,7 +166,9 @@ export default function Home() {
   const handleRecompressAll = () => {
     setImages(prevImages => {
       return prevImages.map(image => {
+        // Only re-queue images that have already been processed or failed
         if (image.status === 'done' || image.status === 'error') {
+          // Clean up old converted URL before re-compressing
           if (image.convertedUrl) {
             URL.revokeObjectURL(image.convertedUrl);
           }
