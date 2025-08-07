@@ -48,7 +48,7 @@ async function convertToWebp(
     if (!ctx) return reject(new Error('Could not get canvas context'));
 
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // This is the fix
+    img.crossOrigin = 'Anonymous';
     img.onload = () => {
       ctx.drawImage(img, 0, 0);
       canvas.toBlob(
@@ -60,7 +60,11 @@ async function convertToWebp(
         quality / 100 // quality is 0-100, toBlob expects 0-1
       );
     };
-    img.onerror = (err) => reject(err);
+    img.onerror = (err) => {
+        // This can happen with tainted canvases
+        console.error("Image loading error:", err);
+        reject(new Error('Failed to load image for conversion. The resource might be blocked by CORS policy.'))
+    };
     img.src = imageUrl;
   });
 }
@@ -101,8 +105,9 @@ export default function Home() {
   const processImage = useCallback(
     async (image: ImageFile, conversionQuality: number) => {
       try {
+        updateImageState(image.id, { status: 'converting' });
         const dimensions = await getImageDimensions(image.originalUrl);
-        updateImageState(image.id, { dimensions, status: 'converting' });
+        updateImageState(image.id, { dimensions });
         
         const convertedBlob = await convertToWebp(
           image.originalUrl,
@@ -158,6 +163,9 @@ export default function Home() {
       return prevImages.map(image => {
         // Only re-process images that are done or have an error
         if (image.status === 'done' || image.status === 'error') {
+          if (image.convertedUrl) {
+            URL.revokeObjectURL(image.convertedUrl);
+          }
           // Reset status to 'pending' to trigger re-processing
           return { 
             ...image, 
