@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -6,10 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/header';
 import { ImageConversionCard } from '@/components/image-conversion-card';
 import { ImageUploader } from '@/components/image-uploader';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { useToast } from '@/hooks/use-toast';
-import { Sparkles } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { optimizeWebpImage } from '@/app/actions';
 
@@ -26,13 +23,21 @@ export interface ImageFile {
 }
 
 async function getImageDimensions(
-  url: string
+  file: File
 ): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.width, height: img.height });
-    img.onerror = (err) => reject(err);
-    img.src = url;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
@@ -45,27 +50,29 @@ const fileToDataUrl = (file: File): Promise<string> => {
   });
 };
 
-const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
-    const res = await fetch(dataUrl);
-    return await res.blob();
-}
-
-
 export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
-  const [quality, setQuality] = useState(75);
   const { toast } = useToast();
 
-  const handleFilesAdded = (files: File[]) => {
-    const newImageFiles: ImageFile[] = files
-      .filter((file) => file.type.startsWith('image/'))
-      .map((file) => ({
-        id: crypto.randomUUID(),
-        file,
-        originalUrl: URL.createObjectURL(file),
-        originalSize: file.size,
-        status: 'pending',
-      }));
+  const handleFilesAdded = async (files: File[]) => {
+    const newImageFiles: ImageFile[] = [];
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        try {
+          const dimensions = await getImageDimensions(file);
+          newImageFiles.push({
+            id: crypto.randomUUID(),
+            file,
+            originalUrl: URL.createObjectURL(file),
+            originalSize: file.size,
+            status: 'pending',
+            dimensions,
+          });
+        } catch (error) {
+          console.error('Could not get dimensions for file:', file.name);
+        }
+      }
+    }
 
     if (newImageFiles.length !== files.length) {
       toast({
@@ -88,19 +95,16 @@ export default function Home() {
   );
 
   const processImage = useCallback(
-    async (imageFile: ImageFile, conversionQuality: number) => {
+    async (imageFile: ImageFile) => {
       try {
         updateImageState(imageFile.id, { status: 'converting' });
-
-        const dimensions = await getImageDimensions(imageFile.originalUrl);
-        updateImageState(imageFile.id, { dimensions });
 
         const originalDataUrl = await fileToDataUrl(imageFile.file);
 
         const convertedDataUrl = await optimizeWebpImage(originalDataUrl);
-        
-        const convertedBlob = await dataUrlToBlob(convertedDataUrl);
-        
+
+        const res = await fetch(convertedDataUrl);
+        const convertedBlob = await res.blob();
         const convertedUrl = URL.createObjectURL(convertedBlob);
 
         updateImageState(imageFile.id, {
@@ -128,109 +132,67 @@ export default function Home() {
     [updateImageState, toast]
   );
 
-  useEffect(() => {
-    const pendingImages = images.filter((image) => image.status === 'pending');
-    if (pendingImages.length > 0) {
-      pendingImages.forEach((image) => {
-        processImage(image, quality);
-      });
-    }
-  }, [images, processImage, quality]);
+  const startProcessing = () => {
+    images
+      .filter((image) => image.status === 'pending')
+      .forEach((image) => processImage(image));
+  };
 
-  // Effect for cleaning up Object URLs
+  useEffect(() => {
+    if (images.some((img) => img.status === 'pending')) {
+      startProcessing();
+    }
+  }, [images]);
+
   useEffect(() => {
     return () => {
       images.forEach((image) => {
-        if (image.originalUrl) {
-          URL.revokeObjectURL(image.originalUrl);
-        }
-        if (image.convertedUrl) {
-          URL.revokeObjectURL(image.convertedUrl);
-        }
+        if (image.originalUrl) URL.revokeObjectURL(image.originalUrl);
+        if (image.convertedUrl) URL.revokeObjectURL(image.convertedUrl);
       });
     };
   }, [images]);
 
-  const handleRecompressAll = () => {
-    setImages((prevImages) => {
-      return prevImages.map((image) => {
-        if (image.status === 'done' || image.status === 'error') {
-          // Clean up old converted URL before re-processing
-          if (image.convertedUrl) {
-            URL.revokeObjectURL(image.convertedUrl);
-          }
-          return {
-            ...image,
-            status: 'pending',
-            convertedUrl: undefined,
-            convertedSize: undefined,
-            error: undefined,
-          };
-        }
-        return image;
-      });
-    });
+  const clearAll = () => {
+    setImages([]);
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background font-sans">
       <Header />
       <main className="flex-1 container mx-auto p-4 md:p-8">
-        <div className="max-w-3xl mx-auto space-y-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl md:text-4xl font-bold">
-              Optimize Images to <span className="text-primary">Next-Gen</span>{' '}
-              WebP
-            </h2>
-            <p className="text-muted-foreground md:text-lg">
-              Upload your images and convert them to the modern WebP format.
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
+              AI-Powered WebP Image Optimizer
+            </h1>
+            <p className="text-muted-foreground md:text-lg max-w-2xl mx-auto">
+              Drag and drop your images to convert them to the highly efficient
+              WebP format, using AI to find the perfect balance between quality
+              and file size.
             </p>
           </div>
           <ImageUploader onFilesAdded={handleFilesAdded} />
 
           {images.length > 0 && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-in fade-in-0 duration-500">
               <Card>
-                <CardContent className="p-6 space-y-4">
-                  <div className="grid gap-2">
-                    <Label
-                      htmlFor="quality-slider"
-                      className="flex justify-between items-center"
-                    >
-                      <span>AI-Powered Optimization</span>
-                       <span className="text-lg font-bold text-primary">
-                        Auto
-                      </span>
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      The AI will intelligently optimize for the best quality-to-size ratio. The quality slider is disabled.
-                    </p>
-                    <Slider
-                      id="quality-slider"
-                      min={1}
-                      max={100}
-                      step={1}
-                      value={[quality]}
-                      onValueChange={(value) => setQuality(value[0])}
-                      disabled={true}
-                    />
-                  </div>
-                  <Button onClick={handleRecompressAll} className="w-full">
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Re-compress All Images
+                <CardContent className="p-4 flex items-center justify-between">
+                  <p className="text-sm font-medium">
+                    {images.filter((img) => img.status === 'done').length} of{' '}
+                    {images.length} images converted.
+                  </p>
+                  <Button onClick={clearAll} variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear All
                   </Button>
                 </CardContent>
               </Card>
 
               <div className="space-y-4">
-                <h3 className="text-2xl font-bold">Conversion Results</h3>
-                <div className="grid gap-6">
+                <div className="grid gap-6 md:grid-cols-2">
                   {images.map((image) => (
-                    <ImageConversionCard
-                      key={image.id}
-                      imageFile={image}
-                      quality={quality}
-                    />
+                    <ImageConversionCard key={image.id} imageFile={image} />
                   ))}
                 </div>
               </div>
@@ -238,11 +200,9 @@ export default function Home() {
           )}
         </div>
       </main>
-      <footer className="py-4 text-center text-sm text-muted-foreground">
+      <footer className="py-6 text-center text-sm text-muted-foreground">
         Built with Next.js and Firebase.
       </footer>
     </div>
   );
 }
-
-    

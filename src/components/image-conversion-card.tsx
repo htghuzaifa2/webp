@@ -27,7 +27,6 @@ import Image from 'next/image';
 
 interface ImageConversionCardProps {
   imageFile: ImageFile;
-  quality: number;
 }
 
 function formatBytes(bytes: number, decimals = 2) {
@@ -39,7 +38,7 @@ function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export function ImageConversionCard({ imageFile, quality }: ImageConversionCardProps) {
+export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
   const compressionPercentage =
     imageFile.originalSize && imageFile.convertedSize
       ? (
@@ -53,8 +52,11 @@ export function ImageConversionCard({ imageFile, quality }: ImageConversionCardP
     if (!imageFile.convertedUrl) return;
     const link = document.createElement('a');
     link.href = imageFile.convertedUrl;
-    const originalFilename = imageFile.file.name.split('.').slice(0, -1).join('.');
-    link.download = `${originalFilename}.webp`;
+    const originalFilename = imageFile.file.name
+      .split('.')
+      .slice(0, -1)
+      .join('.');
+    link.download = `${originalFilename}_optimized.webp`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -62,16 +64,16 @@ export function ImageConversionCard({ imageFile, quality }: ImageConversionCardP
 
   return (
     <Card className="overflow-hidden w-full shadow-md animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-      <CardHeader>
-        <CardTitle className="truncate flex items-center gap-2 text-base md:text-lg">
-          <FileText className="h-5 w-5 flex-shrink-0" />
-          <span className="truncate">{imageFile.file.name}</span>
+      <CardHeader className="p-4 bg-muted/50 border-b">
+        <CardTitle className="truncate flex items-center gap-2 text-base">
+          <FileText className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate font-normal">{imageFile.file.name}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid md:grid-cols-2 gap-4 items-start">
+      <CardContent className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-4 items-start">
           <div className="space-y-2">
-            <h3 className="font-semibold text-center text-muted-foreground">
+            <h3 className="font-semibold text-sm text-center text-muted-foreground">
               Original
             </h3>
             <Card className="aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg">
@@ -84,7 +86,7 @@ export function ImageConversionCard({ imageFile, quality }: ImageConversionCardP
                 data-ai-hint="original image"
               />
             </Card>
-            <div className="flex justify-between text-sm text-muted-foreground">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span>{formatBytes(imageFile.originalSize)}</span>
               <span>
                 {imageFile.dimensions ? (
@@ -97,9 +99,9 @@ export function ImageConversionCard({ imageFile, quality }: ImageConversionCardP
           </div>
 
           <div className="space-y-2">
-            <h3 className="font-semibold text-center text-muted-foreground flex items-center justify-center gap-2">
+            <h3 className="font-semibold text-sm text-center text-muted-foreground flex items-center justify-center gap-1.5">
               <Sparkles className="w-4 h-4 text-primary" />
-              WebP (Quality: {quality})
+              AI Optimized WebP
             </h3>
             <Card className="aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg">
               {imageFile.status === 'done' && imageFile.convertedUrl ? (
@@ -113,31 +115,32 @@ export function ImageConversionCard({ imageFile, quality }: ImageConversionCardP
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground text-center p-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="capitalize text-sm font-semibold">{imageFile.status}...</p>
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <p className="capitalize text-xs font-semibold">
+                    {imageFile.status}...
+                  </p>
                 </div>
               )}
             </Card>
             {imageFile.status === 'done' && imageFile.convertedSize ? (
-              <div className="flex justify-between items-center text-sm">
+              <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">
                   {formatBytes(imageFile.convertedSize)}
                 </span>
                 <Badge
                   variant={
-                    Number(compressionPercentage) > 0
-                      ? 'default'
-                      : 'secondary'
+                    Number(compressionPercentage) >= 0 ? 'default' : 'secondary'
                   }
                   className="bg-accent text-accent-foreground"
                 >
-                  -{compressionPercentage}%
+                  {Number(compressionPercentage) > 0 ? '-' : '+'}
+                  {Math.abs(Number(compressionPercentage))}%
                 </Badge>
               </div>
             ) : (
-              <div className="flex justify-between items-center text-sm">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-16 rounded-full" />
+              <div className="flex justify-between items-center text-sm mt-2">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-5 w-14 rounded-full" />
               </div>
             )}
           </div>
@@ -147,15 +150,17 @@ export function ImageConversionCard({ imageFile, quality }: ImageConversionCardP
           <Alert variant="destructive" className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Conversion Failed</AlertTitle>
-            <AlertDescription>{imageFile.error}</AlertDescription>
+            <AlertDescription className="text-xs">
+              {imageFile.error}
+            </AlertDescription>
           </Alert>
         )}
       </CardContent>
       {imageFile.status === 'done' && (
-        <CardFooter className="bg-muted/30 p-4 flex justify-end">
-          <Button onClick={handleDownload}>
+        <CardFooter className="bg-muted/50 p-3 flex justify-end">
+          <Button onClick={handleDownload} size="sm">
             <Download className="mr-2 h-4 w-4" />
-            Download WebP
+            Download
           </Button>
         </CardFooter>
       )}
