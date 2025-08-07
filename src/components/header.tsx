@@ -10,7 +10,7 @@ export function Header() {
             <ImageIcon className="h-6 w-6 text-primary" />
           </div>
           <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-            WebpImage<span className="text-primary">Optim</span>
+            WebP<span className="text-primary">.huzi.pk</span>
           </h1>
         </div>
         <ThemeToggle />

@@ -67,7 +67,11 @@ async function convertToWebp(
               return;
             }
 
-            const newFile = new File([blob], file.name.replace(/.[^/.]+$/, '.webp'), { type: 'image/webp' });
+            const newFile = new File(
+              [blob],
+              file.name.replace(/.[^/.]+$/, '.webp'),
+              { type: 'image/webp' }
+            );
             const url = URL.createObjectURL(newFile);
             resolve({ url, size: newFile.size, file: newFile });
           },
@@ -100,7 +104,7 @@ export default function Home() {
           const img = new Image();
           img.onload = () => {
             resolve({ width: img.width, height: img.height });
-            URL.revokeObjectURL(img.src); // Clean up the temp URL
+            URL.revokeObjectURL(img.src);
           };
           img.src = URL.createObjectURL(file);
         });
@@ -108,7 +112,7 @@ export default function Home() {
         return {
           id: crypto.randomUUID(),
           file,
-          originalUrl: URL.createObjectURL(file), // Create a fresh URL for display
+          originalUrl: URL.createObjectURL(file),
           originalSize: file.size,
           status: 'pending',
           dimensions,
@@ -135,15 +139,16 @@ export default function Home() {
     const processImage = async (imageFile: ImageFile) => {
       updateImageState(imageFile.id, { status: 'converting' });
       try {
-        const { url: convertedUrl, size: convertedSize, file: convertedFile } = await convertToWebp(
-          imageFile.file,
-          0.9
-        );
+        const {
+          url: convertedUrl,
+          size: convertedSize,
+          file: convertedFile,
+        } = await convertToWebp(imageFile.file, 0.9);
         updateImageState(imageFile.id, {
           convertedUrl,
           convertedSize,
           status: 'done',
-          file: convertedFile, // Store the potentially new file object
+          file: convertedFile,
         });
       } catch (error) {
         console.error('Conversion failed for', imageFile.file.name, error);
@@ -162,18 +167,16 @@ export default function Home() {
         });
       }
     };
-    
-    await Promise.all(pendingImages.map(processImage));
 
+    await Promise.all(pendingImages.map(processImage));
   }, [images, updateImageState, toast]);
 
   useEffect(() => {
-    if(images.some(img => img.status === 'pending')) {
+    if (images.some((img) => img.status === 'pending')) {
       processQueue();
     }
   }, [images, processQueue]);
 
-  // Effect for cleaning up Object URLs when the component unmounts
   useEffect(() => {
     return () => {
       images.forEach((image) => {
@@ -188,7 +191,6 @@ export default function Home() {
   }, [images]);
 
   const clearAll = () => {
-    // Before clearing the state, revoke any existing URLs
     images.forEach((image) => {
       if (image.originalUrl) URL.revokeObjectURL(image.originalUrl);
       if (image.convertedUrl) URL.revokeObjectURL(image.convertedUrl);
@@ -207,12 +209,9 @@ export default function Home() {
 
     await Promise.all(
       doneImages.map(async (image) => {
-        // Since convertedUrl can point to the original file blob if it was smaller,
-        // we fetch it and add it to the zip.
         const response = await fetch(image.convertedUrl!);
         const blob = await response.blob();
-        
-        // Always give it a .webp extension in the zip for consistency
+
         const originalFilename = image.file.name
           .split('.')
           .slice(0, -1)
@@ -220,7 +219,6 @@ export default function Home() {
         zip.file(`${originalFilename}_optimized.webp`, blob);
       })
     );
-
 
     zip
       .generateAsync({ type: 'blob' })
@@ -236,8 +234,7 @@ export default function Home() {
       .catch((err) => {
         toast({
           title: 'ZIP Creation Failed',
-          description:
-            err.message || 'Could not create the zip file.',
+          description: err.message || 'Could not create the zip file.',
           variant: 'destructive',
         });
       })
@@ -267,7 +264,8 @@ export default function Home() {
                     WebP Image Optimizer
                   </CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Convert JPG, PNG, GIF, and other images to the highly efficient WebP format.
+                    Convert JPG, PNG, GIF, and other images to the highly
+                    efficient WebP format.
                   </CardDescription>
                 </div>
               </div>
@@ -321,7 +319,16 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground">
-        Created for the modern web.
+        Built by{' '}
+        <a
+          href="https://huzi.pk"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-primary hover:underline"
+        >
+          huzi.pk
+        </a>
+        .
       </footer>
     </div>
   );
