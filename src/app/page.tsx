@@ -100,6 +100,7 @@ export default function Home() {
           const img = new Image();
           img.onload = () => {
             resolve({ width: img.width, height: img.height });
+            URL.revokeObjectURL(img.src); // Clean up the temp URL
           };
           img.src = URL.createObjectURL(file);
         });
@@ -135,7 +136,8 @@ export default function Home() {
       updateImageState(imageFile.id, { status: 'converting' });
       try {
         const { url: convertedUrl, size: convertedSize, file: convertedFile } = await convertToWebp(
-          imageFile.file
+          imageFile.file,
+          0.9
         );
         updateImageState(imageFile.id, {
           convertedUrl,
@@ -205,8 +207,12 @@ export default function Home() {
 
     await Promise.all(
       doneImages.map(async (image) => {
+        // Since convertedUrl can point to the original file blob if it was smaller,
+        // we fetch it and add it to the zip.
         const response = await fetch(image.convertedUrl!);
         const blob = await response.blob();
+        
+        // Always give it a .webp extension in the zip for consistency
         const originalFilename = image.file.name
           .split('.')
           .slice(0, -1)
@@ -214,6 +220,7 @@ export default function Home() {
         zip.file(`${originalFilename}_optimized.webp`, blob);
       })
     );
+
 
     zip
       .generateAsync({ type: 'blob' })
@@ -251,17 +258,16 @@ export default function Home() {
         <div className="max-w-4xl mx-auto space-y-8">
           <Card className="shadow-lg border-primary/20 animate-in fade-in-0 duration-500">
             <CardHeader>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
+              <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                <div className="p-3 bg-primary/10 rounded-lg flex-shrink-0">
                   <Sparkles className="h-8 w-8 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-2xl md:text-3xl tracking-tight">
                     WebP Image Optimizer
                   </CardTitle>
-                  <CardDescription className="text-base">
-                    Convert images to the highly efficient WebP format, right in
-                    your browser.
+                  <CardDescription className="text-base mt-1">
+                    Convert JPG, PNG, GIF, and other images to the highly efficient WebP format.
                   </CardDescription>
                 </div>
               </div>
@@ -277,7 +283,7 @@ export default function Home() {
                 <CardContent className="p-4 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex-grow space-y-2">
-                      <div className="flex justify-between items-center text-sm font-medium">
+                      <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
                         <p>
                           {convertedCount} of {images.length} images converted.
                         </p>
@@ -315,7 +321,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground">
-        Built with Next.js and love.
+        Created for the modern web.
       </footer>
     </div>
   );

@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import {
   AlertCircle,
   Download,
@@ -61,6 +62,8 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
     link.click();
     document.body.removeChild(link);
   };
+  
+  const isOptimizedSmaller = imageFile.convertedSize ? imageFile.convertedSize < imageFile.originalSize : false;
 
   return (
     <Card className="overflow-hidden w-full shadow-md animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
@@ -103,7 +106,12 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
               <Sparkles className="w-4 h-4 text-primary" />
               Optimized WebP
             </h3>
-            <Card className="aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg">
+            <Card
+              className={cn(
+                'aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg',
+                imageFile.status === 'done' && 'animate-in fade-in-0 duration-500'
+              )}
+            >
               {imageFile.status === 'done' && imageFile.convertedUrl ? (
                 <Image
                   src={imageFile.convertedUrl}
@@ -128,12 +136,10 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                   {formatBytes(imageFile.convertedSize)}
                 </span>
                 <Badge
-                  variant={
-                    Number(compressionPercentage) >= 0 ? 'default' : 'secondary'
-                  }
-                  className="bg-accent text-accent-foreground"
+                   variant={isOptimizedSmaller ? 'default' : 'secondary'}
+                   className={cn(isOptimizedSmaller && 'bg-green-600/80 text-white')}
                 >
-                  {Number(compressionPercentage) > 0 ? '-' : '+'}
+                  {isOptimizedSmaller ? '-' : '+'}
                   {Math.abs(Number(compressionPercentage))}%
                 </Badge>
               </div>

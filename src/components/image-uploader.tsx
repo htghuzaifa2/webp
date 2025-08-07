@@ -13,6 +13,15 @@ interface ImageUploaderProps {
 
 const MAX_FILES = 50;
 const MAX_FILE_SIZE_MB = 99;
+const ACCEPTED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/svg+xml',
+];
+
 
 export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -33,8 +42,12 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
     }
 
     const validFiles = files.filter((file) => {
-      if (!file.type.startsWith('image/')) {
-        // Silently ignore non-image files, or toast if you prefer
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        toast({
+          title: 'Unsupported file type',
+          description: `${file.name} is not a supported image type and has been ignored.`,
+          variant: 'destructive',
+        });
         return false;
       }
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -108,7 +121,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
               Click to upload or drag & drop
             </p>
             <p className="text-muted-foreground text-sm">
-              Supports JPG, PNG, etc. Max {MAX_FILE_SIZE_MB}MB per file.
+              Supports JPG, PNG, GIF, and more. Max {MAX_FILE_SIZE_MB}MB.
             </p>
           </div>
         </label>
@@ -118,7 +131,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
           type="file"
           className="sr-only"
           multiple
-          accept="image/*"
+          accept={ACCEPTED_IMAGE_TYPES.join(',')}
           onChange={handleFileChange}
         />
       </CardContent>
