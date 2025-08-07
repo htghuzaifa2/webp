@@ -41,42 +41,48 @@ function convertToWebp(
 ): Promise<{ blob: Blob; dataUrl: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext('2d');
-
         if (!ctx) {
-          return reject(new Error('Could not get canvas context.'));
+          return reject(new Error('Could not create canvas context'));
         }
-
         ctx.drawImage(img, 0, 0);
-
         canvas.toBlob(
           (blob) => {
-            if (!blob) {
-              return reject(
+            if (blob) {
+              const dataUrl = canvas.toDataURL('image/webp', quality / 100);
+              resolve({ blob, dataUrl });
+            } else {
+              reject(
                 new Error(
-                  'Canvas toBlob returned null. The image may be too large for the browser to handle.'
+                  'Canvas toBlob returned null. The image may be too large or in an unsupported format.'
                 )
               );
             }
-            const dataUrl = canvas.toDataURL('image/webp', quality / 100);
-            resolve({ blob, dataUrl });
           },
           'image/webp',
           quality / 100
         );
       };
-      img.onerror = () =>
-        reject(new Error('Failed to load image for conversion.'));
+      img.onerror = (err) => {
+        console.error('Image loading failed inside converter:', err);
+        reject(new Error('Failed to load image for conversion. It may be corrupt or an unsupported format.'));
+      };
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      } else {
+        reject(new Error('FileReader did not successfully read the file.'));
+      }
     };
-    reader.onerror = (error) => reject(error);
+    reader.onerror = (error) => {
+      reject(new Error('FileReader failed to read file: ' + error));
+    };
+    reader.readAsDataURL(file);
   });
 }
 
@@ -182,6 +188,7 @@ export default function Home() {
     setImages((prevImages) => {
       return prevImages.map((image) => {
         if (image.status === 'done' || image.status === 'error') {
+          // Clean up old converted URL before re-processing
           if (image.convertedUrl) {
             URL.revokeObjectURL(image.convertedUrl);
           }
@@ -199,7 +206,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
       <Header />
       <main className="flex-1 container mx-auto p-4 md:p-8">
         <div className="max-w-3xl mx-auto space-y-8">
@@ -265,7 +272,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        Built with Next.js.
+        Built with Next.js and Firebase.
       </footer>
     </div>
   );
