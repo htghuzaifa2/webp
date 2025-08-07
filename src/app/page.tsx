@@ -1,7 +1,6 @@
 
 'use client';
 
-import { optimizeWebpAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/header';
@@ -36,18 +35,49 @@ async function getImageDimensions(
   });
 }
 
-function fileToDataUri(file: File): Promise<string> {
+function convertToWebp(
+  file: File,
+  quality: number
+): Promise<{ blob: Blob; dataUrl: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
-  });
-}
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
 
-async function dataUriToBlob(dataUri: string): Promise<Blob> {
-  const res = await fetch(dataUri);
-  return await res.blob();
+        if (!ctx) {
+          return reject(new Error('Could not get canvas context.'));
+        }
+
+        ctx.drawImage(img, 0, 0);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              return reject(
+                new Error(
+                  'Canvas toBlob returned null. The image may be too large for the browser to handle.'
+                )
+              );
+            }
+            const dataUrl = canvas.toDataURL('image/webp', quality / 100);
+            resolve({ blob, dataUrl });
+          },
+          'image/webp',
+          quality / 100
+        );
+      };
+      img.onerror = () =>
+        reject(new Error('Failed to load image for conversion.'));
+    };
+    reader.onerror = (error) => reject(error);
+  });
 }
 
 export default function Home() {
@@ -57,7 +87,7 @@ export default function Home() {
 
   const handleFilesAdded = (files: File[]) => {
     const newImageFiles: ImageFile[] = files
-      .filter(file => file.type.startsWith('image/'))
+      .filter((file) => file.type.startsWith('image/'))
       .map((file) => ({
         id: crypto.randomUUID(),
         file,
@@ -65,7 +95,7 @@ export default function Home() {
         originalSize: file.size,
         status: 'pending',
       }));
-    
+
     if (newImageFiles.length !== files.length) {
       toast({
         title: 'Unsupported file type',
@@ -77,11 +107,14 @@ export default function Home() {
     setImages((prev) => [...prev, ...newImageFiles]);
   };
 
-  const updateImageState = useCallback((id: string, updates: Partial<ImageFile>) => {
-    setImages((prev) =>
-      prev.map((img) => (img.id === id ? { ...img, ...updates } : img))
-    );
-  }, []);
+  const updateImageState = useCallback(
+    (id: string, updates: Partial<ImageFile>) => {
+      setImages((prev) =>
+        prev.map((img) => (img.id === id ? { ...img, ...updates } : img))
+      );
+    },
+    []
+  );
 
   const processImage = useCallback(
     async (imageFile: ImageFile, conversionQuality: number) => {
@@ -91,14 +124,10 @@ export default function Home() {
         const dimensions = await getImageDimensions(imageFile.originalUrl);
         updateImageState(imageFile.id, { dimensions });
 
-        const photoDataUri = await fileToDataUri(imageFile.file);
-        
-        const convertedDataUri = await optimizeWebpAction({
-          photoDataUri,
-          quality: conversionQuality,
-        });
-
-        const convertedBlob = await dataUriToBlob(convertedDataUri);
+        const { blob: convertedBlob } = await convertToWebp(
+          imageFile.file,
+          conversionQuality
+        );
         const convertedUrl = URL.createObjectURL(convertedBlob);
 
         updateImageState(imageFile.id, {
@@ -108,7 +137,10 @@ export default function Home() {
         });
       } catch (error) {
         console.error('Conversion failed for', imageFile.file.name, error);
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during conversion.';
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'An unknown error occurred during conversion.';
         updateImageState(imageFile.id, {
           status: 'error',
           error: errorMessage,
@@ -116,26 +148,26 @@ export default function Home() {
         toast({
           title: `Conversion Error: ${imageFile.file.name}`,
           description: errorMessage,
-          variant: 'destructive'
-        })
+          variant: 'destructive',
+        });
       }
     },
     [updateImageState, toast]
   );
 
   useEffect(() => {
-    const pendingImages = images.filter(image => image.status === 'pending');
+    const pendingImages = images.filter((image) => image.status === 'pending');
     if (pendingImages.length > 0) {
-      pendingImages.forEach(image => {
+      pendingImages.forEach((image) => {
         processImage(image, quality);
       });
     }
   }, [images, processImage, quality]);
-  
+
   // Effect for cleaning up Object URLs
   useEffect(() => {
     return () => {
-      images.forEach(image => {
+      images.forEach((image) => {
         if (image.originalUrl) {
           URL.revokeObjectURL(image.originalUrl);
         }
@@ -145,16 +177,16 @@ export default function Home() {
       });
     };
   }, [images]);
-  
+
   const handleRecompressAll = () => {
-    setImages(prevImages => {
-      return prevImages.map(image => {
+    setImages((prevImages) => {
+      return prevImages.map((image) => {
         if (image.status === 'done' || image.status === 'error') {
           if (image.convertedUrl) {
             URL.revokeObjectURL(image.convertedUrl);
           }
-          return { 
-            ...image, 
+          return {
+            ...image,
             status: 'pending',
             convertedUrl: undefined,
             convertedSize: undefined,
@@ -177,22 +209,28 @@ export default function Home() {
               WebP
             </h2>
             <p className="text-muted-foreground md:text-lg">
-              Upload your images and convert them to the modern WebP format using AI.
+              Upload your images and convert them to the modern WebP format.
             </p>
           </div>
           <ImageUploader onFilesAdded={handleFilesAdded} />
 
           {images.length > 0 && (
             <div className="space-y-6">
-               <Card>
+              <Card>
                 <CardContent className="p-6 space-y-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="quality-slider" className="flex justify-between items-center">
+                    <Label
+                      htmlFor="quality-slider"
+                      className="flex justify-between items-center"
+                    >
                       <span>Conversion Quality</span>
-                      <span className="text-lg font-bold text-primary">{quality}</span>
+                      <span className="text-lg font-bold text-primary">
+                        {quality}
+                      </span>
                     </Label>
                     <p className="text-sm text-muted-foreground">
-                      Lower values result in smaller file sizes, but may reduce image quality.
+                      Lower values result in smaller file sizes, but may reduce
+                      image quality.
                     </p>
                     <Slider
                       id="quality-slider"
@@ -203,7 +241,7 @@ export default function Home() {
                       onValueChange={(value) => setQuality(value[0])}
                     />
                   </div>
-                   <Button onClick={handleRecompressAll} className="w-full">
+                  <Button onClick={handleRecompressAll} className="w-full">
                     <Sparkles className="mr-2 h-4 w-4" />
                     Re-compress All Images with New Quality
                   </Button>
@@ -214,7 +252,11 @@ export default function Home() {
                 <h3 className="text-2xl font-bold">Conversion Results</h3>
                 <div className="grid gap-6">
                   {images.map((image) => (
-                    <ImageConversionCard key={image.id} imageFile={image} quality={quality}/>
+                    <ImageConversionCard
+                      key={image.id}
+                      imageFile={image}
+                      quality={quality}
+                    />
                   ))}
                 </div>
               </div>
@@ -223,7 +265,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        Built with Next.js and Genkit.
+        Built with Next.js.
       </footer>
     </div>
   );
