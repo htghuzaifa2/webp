@@ -8,7 +8,6 @@ import { ImageUploader } from '@/components/image-uploader';
 import { useToast } from '@/components/ui/use-toast';
 import { Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { optimizeWebpImage } from '@/app/actions';
 
 export interface ImageFile {
   id: string;
@@ -22,65 +21,75 @@ export interface ImageFile {
   dimensions?: { width: number; height: number };
 }
 
-async function getImageDimensions(
+async function convertToWebp(
   file: File
-): Promise<{ width: number; height: number }> {
+): Promise<{ url: string; size: number }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        resolve({ width: img.width, height: img.height });
-        URL.revokeObjectURL(img.src);
-      };
-      img.onerror = reject;
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = reject;
     reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return reject(new Error('Failed to get canvas context'));
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              return reject(new Error('Canvas toBlob returned null'));
+            }
+            const url = URL.createObjectURL(blob);
+            resolve({ url, size: blob.size });
+          },
+          'image/webp',
+          0.9
+        );
+      };
+      img.onerror = (err) => {
+        reject(new Error('Failed to load image for conversion.'));
+      };
+    };
+    reader.onerror = (err) => {
+      reject(new Error('Failed to read file.'));
+    };
   });
 }
-
-const fileToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(file);
-  });
-};
 
 export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
   const { toast } = useToast();
 
   const handleFilesAdded = async (files: File[]) => {
-    const newImageFiles: ImageFile[] = [];
-    for (const file of files) {
-      if (file.type.startsWith('image/')) {
-        try {
-          const dimensions = await getImageDimensions(file);
-          newImageFiles.push({
-            id: crypto.randomUUID(),
-            file,
-            originalUrl: URL.createObjectURL(file),
-            originalSize: file.size,
-            status: 'pending',
-            dimensions,
-          });
-        } catch (error) {
-          console.error('Could not get dimensions for file:', file.name);
-        }
-      }
-    }
+    const newImageFiles: ImageFile[] = await Promise.all(
+      files.map(async (file) => {
+        const dimensions = await new Promise<{
+          width: number;
+          height: number;
+        }>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve({ width: img.width, height: img.height });
+            URL.revokeObjectURL(img.src);
+          };
+          img.src = URL.createObjectURL(file);
+        });
 
-    if (newImageFiles.length !== files.length) {
-      toast({
-        title: 'Unsupported file type',
-        description: 'Some files were not images and have been ignored.',
-        variant: 'destructive',
-      });
-    }
+        return {
+          id: crypto.randomUUID(),
+          file,
+          originalUrl: URL.createObjectURL(file),
+          originalSize: file.size,
+          status: 'pending',
+          dimensions,
+        };
+      })
+    );
 
     setImages((prev) => [...prev, ...newImageFiles]);
   };
@@ -96,20 +105,14 @@ export default function Home() {
 
   const processImage = useCallback(
     async (imageFile: ImageFile) => {
+      updateImageState(imageFile.id, { status: 'converting' });
       try {
-        updateImageState(imageFile.id, { status: 'converting' });
-
-        const originalDataUrl = await fileToDataUrl(imageFile.file);
-
-        const convertedDataUrl = await optimizeWebpImage(originalDataUrl);
-
-        const res = await fetch(convertedDataUrl);
-        const convertedBlob = await res.blob();
-        const convertedUrl = URL.createObjectURL(convertedBlob);
-
+        const { url: convertedUrl, size: convertedSize } = await convertToWebp(
+          imageFile.file
+        );
         updateImageState(imageFile.id, {
           convertedUrl,
-          convertedSize: convertedBlob.size,
+          convertedSize,
           status: 'done',
         });
       } catch (error) {
@@ -132,17 +135,17 @@ export default function Home() {
     [updateImageState, toast]
   );
 
-  const startProcessing = () => {
+  const startProcessing = useCallback(() => {
     images
       .filter((image) => image.status === 'pending')
       .forEach((image) => processImage(image));
-  };
+  }, [images, processImage]);
 
   useEffect(() => {
     if (images.some((img) => img.status === 'pending')) {
       startProcessing();
     }
-  }, [images]);
+  }, [images, startProcessing]);
 
   useEffect(() => {
     return () => {
@@ -164,12 +167,11 @@ export default function Home() {
         <div className="max-w-4xl mx-auto space-y-8">
           <div className="text-center space-y-2">
             <h1 className="text-3xl md:text-5xl font-bold tracking-tight">
-              AI-Powered WebP Image Optimizer
+              Client-Side WebP Image Optimizer
             </h1>
             <p className="text-muted-foreground md:text-lg max-w-2xl mx-auto">
               Drag and drop your images to convert them to the highly efficient
-              WebP format, using AI to find the perfect balance between quality
-              and file size.
+              WebP format, right in your browser.
             </p>
           </div>
           <ImageUploader onFilesAdded={handleFilesAdded} />

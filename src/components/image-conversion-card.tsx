@@ -101,7 +101,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-center text-muted-foreground flex items-center justify-center gap-1.5">
               <Sparkles className="w-4 h-4 text-primary" />
-              AI Optimized WebP
+              Optimized WebP
             </h3>
             <Card className="aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg">
               {imageFile.status === 'done' && imageFile.convertedUrl ? (
