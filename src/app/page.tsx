@@ -41,34 +41,38 @@ async function convertToWebp(
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
+    reader.onload = (readerEvent) => {
+      const image = new Image();
+      image.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
+        canvas.width = image.width;
+        canvas.height = image.height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Could not get canvas context'));
-
-        try {
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) return reject(new Error('Canvas toBlob failed'));
-              resolve(blob);
-            },
-            'image/webp',
-            quality / 100
-          );
-        } catch (e) {
-          reject(e);
+        if (!ctx) {
+          return reject(new Error('Failed to get canvas context.'));
         }
+        ctx.drawImage(image, 0, 0);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Canvas toBlob returned null.'));
+            }
+          },
+          'image/webp',
+          quality / 100
+        );
       };
-      img.onerror = reject;
+      image.onerror = () => reject(new Error('Image failed to load.'));
+      if (readerEvent.target?.result) {
+        image.src = readerEvent.target.result as string;
+      } else {
+        reject(new Error('FileReader failed to read file.'));
+      }
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('FileReader error.'));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -159,14 +163,11 @@ export default function Home() {
   
   const handleRecompressAll = () => {
     setImages(prevImages => {
-      // Create a new array to trigger re-render
       return prevImages.map(image => {
-        // Only re-process images that are done or have an error
         if (image.status === 'done' || image.status === 'error') {
           if (image.convertedUrl) {
             URL.revokeObjectURL(image.convertedUrl);
           }
-          // Reset status to 'pending' to trigger re-processing
           return { 
             ...image, 
             status: 'pending',
