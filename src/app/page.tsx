@@ -36,36 +36,29 @@ async function getImageDimensions(
 }
 
 async function convertToWebp(
-  imageUrl: string,
-  quality: number,
-  dimensions: { width: number; height: number }
+  image: HTMLImageElement,
+  quality: number
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
-    canvas.width = dimensions.width;
-    canvas.height = dimensions.height;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return reject(new Error('Could not get canvas context'));
 
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0);
+    try {
+      ctx.drawImage(image, 0, 0);
       canvas.toBlob(
         (blob) => {
           if (!blob) return reject(new Error('Canvas toBlob failed'));
           resolve(blob);
         },
         'image/webp',
-        quality / 100 // quality is 0-100, toBlob expects 0-1
+        quality / 100
       );
-    };
-    img.onerror = (err) => {
-        // This can happen with tainted canvases
-        console.error("Image loading error:", err);
-        reject(new Error('Failed to load image for conversion. The resource might be blocked by CORS policy.'))
-    };
-    img.src = imageUrl;
+    } catch(e) {
+      reject(e);
+    }
   });
 }
 
@@ -103,33 +96,41 @@ export default function Home() {
   }, []);
 
   const processImage = useCallback(
-    async (image: ImageFile, conversionQuality: number) => {
+    async (imageFile: ImageFile, conversionQuality: number) => {
       try {
-        updateImageState(image.id, { status: 'converting' });
-        const dimensions = await getImageDimensions(image.originalUrl);
-        updateImageState(image.id, { dimensions });
+        updateImageState(imageFile.id, { status: 'converting' });
+
+        const dimensions = await getImageDimensions(imageFile.originalUrl);
+        updateImageState(imageFile.id, { dimensions });
+
+        const imageElement = new Image();
         
-        const convertedBlob = await convertToWebp(
-          image.originalUrl,
-          conversionQuality,
-          dimensions
-        );
+        const imageLoaded = new Promise((resolve, reject) => {
+          imageElement.onload = resolve;
+          imageElement.onerror = reject;
+        });
+
+        imageElement.src = imageFile.originalUrl;
+        
+        await imageLoaded;
+        
+        const convertedBlob = await convertToWebp(imageElement, conversionQuality);
         const convertedUrl = URL.createObjectURL(convertedBlob);
 
-        updateImageState(image.id, {
+        updateImageState(imageFile.id, {
           convertedUrl,
           convertedSize: convertedBlob.size,
           status: 'done',
         });
       } catch (error) {
-        console.error('Conversion failed for', image.file.name, error);
+        console.error('Conversion failed for', imageFile.file.name, error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during conversion.';
-        updateImageState(image.id, {
+        updateImageState(imageFile.id, {
           status: 'error',
           error: errorMessage,
         });
         toast({
-          title: `Conversion Error: ${image.file.name}`,
+          title: `Conversion Error: ${imageFile.file.name}`,
           description: errorMessage,
           variant: 'destructive'
         })
