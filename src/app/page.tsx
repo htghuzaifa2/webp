@@ -1,6 +1,7 @@
 
 'use client';
 
+import { optimizeWebpAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/header';
@@ -35,42 +36,19 @@ async function getImageDimensions(
   });
 }
 
-async function convertToWebp(
-  file: File,
-  quality: number
-): Promise<Blob> {
-  // Using createImageBitmap for a more robust and efficient way to get image data.
-  const imageBitmap = await createImageBitmap(file);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = imageBitmap.width;
-  canvas.height = imageBitmap.height;
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) {
-    throw new Error('Failed to get canvas context.');
-  }
-
-  ctx.drawImage(imageBitmap, 0, 0);
-  
-  // Close the bitmap to free up memory
-  imageBitmap.close();
-
+function fileToDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Canvas toBlob returned null. This can happen if the image is too large.'));
-        }
-      },
-      'image/webp',
-      quality / 100
-    );
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
   });
 }
 
+async function dataUriToBlob(dataUri: string): Promise<Blob> {
+  const res = await fetch(dataUri);
+  return await res.blob();
+}
 
 export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -110,11 +88,17 @@ export default function Home() {
       try {
         updateImageState(imageFile.id, { status: 'converting' });
 
-        // Get dimensions first
         const dimensions = await getImageDimensions(imageFile.originalUrl);
         updateImageState(imageFile.id, { dimensions });
 
-        const convertedBlob = await convertToWebp(imageFile.file, conversionQuality);
+        const photoDataUri = await fileToDataUri(imageFile.file);
+        
+        const convertedDataUri = await optimizeWebpAction({
+          photoDataUri,
+          quality: conversionQuality,
+        });
+
+        const convertedBlob = await dataUriToBlob(convertedDataUri);
         const convertedUrl = URL.createObjectURL(convertedBlob);
 
         updateImageState(imageFile.id, {
@@ -150,7 +134,6 @@ export default function Home() {
   
   // Effect for cleaning up Object URLs
   useEffect(() => {
-    // This function will be called when the component unmounts
     return () => {
       images.forEach(image => {
         if (image.originalUrl) {
@@ -166,9 +149,7 @@ export default function Home() {
   const handleRecompressAll = () => {
     setImages(prevImages => {
       return prevImages.map(image => {
-        // Only re-queue images that have already been processed or failed
         if (image.status === 'done' || image.status === 'error') {
-          // Clean up old converted URL before re-compressing
           if (image.convertedUrl) {
             URL.revokeObjectURL(image.convertedUrl);
           }
@@ -196,7 +177,7 @@ export default function Home() {
               WebP
             </h2>
             <p className="text-muted-foreground md:text-lg">
-              Upload your images and convert them to the modern WebP format right in your browser.
+              Upload your images and convert them to the modern WebP format using AI.
             </p>
           </div>
           <ImageUploader onFilesAdded={handleFilesAdded} />
@@ -242,7 +223,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        Built with Next.js.
+        Built with Next.js and Genkit.
       </footer>
     </div>
   );
