@@ -14,7 +14,7 @@ import { ImageUploader } from '@/components/image-uploader';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import JSZip from 'jszip';
-import { Download, Sparkles, Trash2, FileZip } from 'lucide-react';
+import { Download, Sparkles, Trash2, Archive } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface ImageFile {
@@ -274,7 +274,7 @@ export default function Home() {
                           variant="outline"
                           disabled={isZipping}
                         >
-                          <FileZip className="mr-2" />
+                          <Archive className="mr-2" />
                           {isZipping ? 'Zipping...' : 'Download All (ZIP)'}
                         </Button>
                       )}
