@@ -8,7 +8,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <ImageIcon className="h-7 w-7 text-primary" />
           <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-            <span className="text-primary">Webp</span>ImageOptim
+            <span className="text-primary">WebP</span>Converter
           </h1>
         </div>
         <ThemeToggle />

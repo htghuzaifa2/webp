@@ -1,12 +1,12 @@
 'use client';
 
-import type { OptimizeWebpOutput } from '@/ai/flows/optimize-webp-conversion';
 import { Header } from '@/components/header';
 import { ImageConversionCard } from '@/components/image-conversion-card';
 import { ImageUploader } from '@/components/image-uploader';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { useCallback, useEffect, useState } from 'react';
-import { optimizeWebp } from './actions';
 
 export interface ImageFile {
   id: string;
@@ -15,8 +15,7 @@ export interface ImageFile {
   convertedUrl?: string;
   originalSize: number;
   convertedSize?: number;
-  optimization?: OptimizeWebpOutput;
-  status: 'pending' | 'optimizing' | 'converting' | 'done' | 'error';
+  status: 'pending' | 'converting' | 'done' | 'error';
   error?: string;
   dimensions?: { width: number; height: number };
 }
@@ -54,7 +53,7 @@ async function convertToWebp(
           resolve(blob);
         },
         'image/webp',
-        quality
+        quality / 100 // quality is 0-100, toBlob expects 0-1
       );
     };
     img.onerror = (err) => reject(err);
@@ -64,6 +63,7 @@ async function convertToWebp(
 
 export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
+  const [quality, setQuality] = useState(75);
   const { toast } = useToast();
 
   const handleFilesAdded = (files: File[]) => {
@@ -95,25 +95,14 @@ export default function Home() {
   }, []);
 
   const processImage = useCallback(
-    async (image: ImageFile) => {
+    async (image: ImageFile, conversionQuality: number) => {
       try {
         const dimensions = await getImageDimensions(image.originalUrl);
-        updateImageState(image.id, { dimensions, status: 'optimizing' });
-
-        const optimizationResult = await optimizeWebp({
-          originalSizeKb: image.originalSize / 1024,
-          imageType: image.file.type,
-          description: `A user-uploaded image for WebP conversion.`,
-        });
-        updateImageState(image.id, {
-          optimization: optimizationResult,
-          status: 'converting',
-        });
-
-        const quality = optimizationResult.quality / 100;
+        updateImageState(image.id, { dimensions, status: 'converting' });
+        
         const convertedBlob = await convertToWebp(
           image.originalUrl,
-          quality,
+          conversionQuality,
           dimensions
         );
         const convertedUrl = URL.createObjectURL(convertedBlob);
@@ -143,10 +132,10 @@ export default function Home() {
   useEffect(() => {
     images.forEach(image => {
       if (image.status === 'pending') {
-        processImage(image);
+        processImage(image, quality);
       }
     });
-  }, [images, processImage]);
+  }, [images, processImage, quality]);
   
   useEffect(() => {
     return () => {
@@ -158,6 +147,26 @@ export default function Home() {
       });
     };
   }, [images]);
+  
+  const handleRecompressAll = () => {
+    setImages(prevImages => {
+      // Create a new array to trigger re-render
+      return prevImages.map(image => {
+        // Only re-process images that are done or have an error
+        if (image.status === 'done' || image.status === 'error') {
+          // Reset status to 'pending' to trigger re-processing
+          return { 
+            ...image, 
+            status: 'pending',
+            convertedUrl: undefined,
+            convertedSize: undefined,
+            error: undefined,
+          };
+        }
+        return image;
+      });
+    });
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -170,26 +179,53 @@ export default function Home() {
               WebP
             </h2>
             <p className="text-muted-foreground md:text-lg">
-              Upload your images and let our AI find the perfect balance between
-              quality and file size.
+              Upload your images and convert them to the modern WebP format right in your browser.
             </p>
           </div>
           <ImageUploader onFilesAdded={handleFilesAdded} />
 
           {images.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-2xl font-bold">Conversion Results</h3>
-              <div className="grid gap-6">
-                {images.map((image) => (
-                  <ImageConversionCard key={image.id} imageFile={image} />
-                ))}
+            <div className="space-y-6">
+               <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="quality-slider" className="flex justify-between items-center">
+                      <span>Conversion Quality</span>
+                      <span className="text-lg font-bold text-primary">{quality}</span>
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Lower values result in smaller file sizes, but may reduce image quality.
+                    </p>
+                    <Slider
+                      id="quality-slider"
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={[quality]}
+                      onValueChange={(value) => setQuality(value[0])}
+                    />
+                  </div>
+                   <Button onClick={handleRecompressAll} className="w-full">
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Re-compress All Images with New Quality
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
+                <h3 className="text-2xl font-bold">Conversion Results</h3>
+                <div className="grid gap-6">
+                  {images.map((image) => (
+                    <ImageConversionCard key={image.id} imageFile={image} quality={quality}/>
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </div>
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        Built with Next.js and Genkit AI.
+        Built with Next.js.
       </footer>
     </div>
   );

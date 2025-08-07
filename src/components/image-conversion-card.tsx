@@ -27,6 +27,7 @@ import Image from 'next/image';
 
 interface ImageConversionCardProps {
   imageFile: ImageFile;
+  quality: number;
 }
 
 function formatBytes(bytes: number, decimals = 2) {
@@ -38,7 +39,7 @@ function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
+export function ImageConversionCard({ imageFile, quality }: ImageConversionCardProps) {
   const compressionPercentage =
     imageFile.originalSize && imageFile.convertedSize
       ? (
@@ -98,7 +99,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
           <div className="space-y-2">
             <h3 className="font-semibold text-center text-muted-foreground flex items-center justify-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              Optimized WebP
+              WebP (Quality: {quality})
             </h3>
             <Card className="aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg">
               {imageFile.status === 'done' && imageFile.convertedUrl ? (
@@ -114,13 +115,6 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground text-center p-4">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="capitalize text-sm font-semibold">{imageFile.status}...</p>
-                  {imageFile.status === 'converting' &&
-                    imageFile.optimization && (
-                      <p className="text-xs text-muted-foreground/80">
-                        AI settings: Quality {imageFile.optimization.quality},
-                        Method {imageFile.optimization.method}
-                      </p>
-                    )}
                 </div>
               )}
             </Card>

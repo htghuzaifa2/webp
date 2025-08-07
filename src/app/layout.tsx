@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'WebpImageOptim',
+  title: 'Webp Image Converter',
   description: 'Convert and optimize images to WebP format in your browser.',
 };
 
