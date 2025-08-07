@@ -11,8 +11,8 @@ interface ImageUploaderProps {
   className?: string;
 }
 
-const MAX_FILES = 20;
-const MAX_FILE_SIZE_MB = 10;
+const MAX_FILES = 50;
+const MAX_FILE_SIZE_MB = 15;
 
 export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -34,6 +34,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
 
     const validFiles = files.filter((file) => {
       if (!file.type.startsWith('image/')) {
+        // Silently ignore non-image files, or toast if you prefer
         return false;
       }
       if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -54,7 +55,6 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     processFiles(e.target.files);
-    // Reset the input value to allow re-uploading the same file
     e.target.value = '';
   };
 
@@ -86,7 +86,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
   return (
     <Card
       className={cn(
-        'border-2 border-dashed hover:border-primary transition-colors duration-300',
+        'border-2 border-dashed hover:border-primary transition-colors duration-300 bg-background/50 hover:bg-primary/5',
         isDragging && 'border-primary bg-primary/10',
         className
       )}
@@ -98,17 +98,17 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
       <CardContent className="p-6">
         <label
           htmlFor="file-upload"
-          className="flex flex-col items-center justify-center space-y-4 cursor-pointer text-center"
+          className="flex flex-col items-center justify-center space-y-4 cursor-pointer text-center group"
         >
-          <div className="rounded-full border-8 border-secondary bg-secondary p-4 text-primary transition-colors group-hover:bg-primary/10">
-            <UploadCloud className="h-10 w-10" />
+          <div className="rounded-full border-8 border-background bg-secondary p-4 text-primary transition-colors group-hover:bg-primary/10 group-hover:text-primary-foreground">
+            <UploadCloud className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div>
-            <p className="font-semibold text-lg">
-              Click to upload or drag & drop images
+            <p className="font-semibold text-lg text-foreground">
+              Click to upload or drag & drop
             </p>
             <p className="text-muted-foreground text-sm">
-              Supports JPG, PNG, BMP, etc. Max 10MB per file.
+              Supports JPG, PNG, etc. Max {MAX_FILE_SIZE_MB}MB per file.
             </p>
           </div>
         </label>
