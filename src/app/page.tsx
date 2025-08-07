@@ -11,6 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { optimizeWebpImage } from '@/app/actions';
 
 export interface ImageFile {
   id: string;
@@ -35,56 +36,20 @@ async function getImageDimensions(
   });
 }
 
-function convertToWebp(
-  file: File,
-  quality: number
-): Promise<{ blob: Blob; dataUrl: string }> {
+const fileToDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return reject(new Error('Could not create canvas context'));
-        }
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const dataUrl = canvas.toDataURL('image/webp', quality / 100);
-              resolve({ blob, dataUrl });
-            } else {
-              reject(
-                new Error(
-                  'Canvas toBlob returned null. The image may be too large or in an unsupported format.'
-                )
-              );
-            }
-          },
-          'image/webp',
-          quality / 100
-        );
-      };
-      img.onerror = (err) => {
-        console.error('Image loading failed inside converter:', err);
-        reject(new Error('Failed to load image for conversion. It may be corrupt or an unsupported format.'));
-      };
-      if (event.target?.result) {
-        img.src = event.target.result as string;
-      } else {
-        reject(new Error('FileReader did not successfully read the file.'));
-      }
-    };
-    reader.onerror = (error) => {
-      reject(new Error('FileReader failed to read file: ' + error));
-    };
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
   });
+};
+
+const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
+    const res = await fetch(dataUrl);
+    return await res.blob();
 }
+
 
 export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -130,10 +95,12 @@ export default function Home() {
         const dimensions = await getImageDimensions(imageFile.originalUrl);
         updateImageState(imageFile.id, { dimensions });
 
-        const { blob: convertedBlob } = await convertToWebp(
-          imageFile.file,
-          conversionQuality
-        );
+        const originalDataUrl = await fileToDataUrl(imageFile.file);
+
+        const convertedDataUrl = await optimizeWebpImage(originalDataUrl);
+        
+        const convertedBlob = await dataUrlToBlob(convertedDataUrl);
+        
         const convertedUrl = URL.createObjectURL(convertedBlob);
 
         updateImageState(imageFile.id, {
@@ -230,14 +197,13 @@ export default function Home() {
                       htmlFor="quality-slider"
                       className="flex justify-between items-center"
                     >
-                      <span>Conversion Quality</span>
-                      <span className="text-lg font-bold text-primary">
-                        {quality}
+                      <span>AI-Powered Optimization</span>
+                       <span className="text-lg font-bold text-primary">
+                        Auto
                       </span>
                     </Label>
                     <p className="text-sm text-muted-foreground">
-                      Lower values result in smaller file sizes, but may reduce
-                      image quality.
+                      The AI will intelligently optimize for the best quality-to-size ratio. The quality slider is disabled.
                     </p>
                     <Slider
                       id="quality-slider"
@@ -246,11 +212,12 @@ export default function Home() {
                       step={1}
                       value={[quality]}
                       onValueChange={(value) => setQuality(value[0])}
+                      disabled={true}
                     />
                   </div>
                   <Button onClick={handleRecompressAll} className="w-full">
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Re-compress All Images with New Quality
+                    Re-compress All Images
                   </Button>
                 </CardContent>
               </Card>
@@ -277,3 +244,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
