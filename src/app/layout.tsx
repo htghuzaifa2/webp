@@ -8,25 +8,25 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://webp.huzi.pk'),
-  title: 'WebP Image Optimizer | Convert to WebP Online',
+  title: 'WebP Converter & Optimizer - webp.huzi.pk',
   description:
-    'Instantly convert and optimize your JPG, PNG, GIF images to the highly efficient WebP format with a single click. Free, fast, and secure online tool.',
+    'Convert JPG, PNG, GIF to WebP online. Fast, free, and private image optimization.',
   keywords: [
     'WebP converter',
-    'Image optimizer',
-    'Convert to WebP',
+    'image optimizer',
+    'convert to WebP',
     'JPG to WebP',
     'PNG to WebP',
-    'Online image converter',
-    'Image compression',
+    'online image converter',
+    'image compression',
   ],
-  authors: [{ name: 'Huzi.pk', url: 'https://webp.huzi.pk' }],
+  authors: [{ name: 'huzi.pk', url: 'https://webp.huzi.pk' }],
   openGraph: {
-    title: 'WebP Image Optimizer | Convert to WebP Online',
+    title: 'WebP Converter & Optimizer - webp.huzi.pk',
     description:
-      'Instantly convert and optimize your JPG, PNG, GIF images to the highly efficient WebP format.',
+      'Convert images to WebP online. Free, fast, and private image optimization.',
     url: 'https://webp.huzi.pk',
-    siteName: 'WebP Image Optimizer',
+    siteName: 'WebP Optimizer',
     images: [
       {
         url: 'https://webp.huzi.pk/og-image.png', // It's good practice to have an OG image
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'WebP Image Optimizer | Convert to WebP Online',
+    title: 'WebP Converter & Optimizer - webp.huzi.pk',
     description:
-      'Fast, free, and secure tool to convert images to the modern WebP format.',
+      'Convert images to WebP online. Free, fast, and private image optimization.',
     // creator: "@yourtwitterhandle", // Optional: add your twitter handle
     images: ['https://webp.huzi.pk/og-image.png'],
   },

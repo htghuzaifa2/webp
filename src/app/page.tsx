@@ -261,11 +261,10 @@ export default function Home() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl md:text-3xl tracking-tight">
-                    WebP Image Optimizer
+                    WebP Optimizer
                   </CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Convert JPG, PNG, GIF, and other images to the highly
-                    efficient WebP format.
+                    Convert images to WebP online. Free & private.
                   </CardDescription>
                 </div>
               </div>
@@ -319,7 +318,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground">
-        Built by{' '}
+        A project by{' '}
         <a
           href="https://huzi.pk"
           target="_blank"
