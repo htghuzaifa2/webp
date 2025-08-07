@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,7 @@ async function convertToWebp(
     if (!ctx) return reject(new Error('Could not get canvas context'));
 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = 'anonymous'; // This is the fix
     img.onload = () => {
       ctx.drawImage(img, 0, 0);
       canvas.toBlob(
