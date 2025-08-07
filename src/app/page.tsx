@@ -31,7 +31,7 @@ export interface ImageFile {
 
 async function convertToWebp(
   file: File,
-  quality = 0.9
+  quality = 1.0
 ): Promise<{ url: string; size: number }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
