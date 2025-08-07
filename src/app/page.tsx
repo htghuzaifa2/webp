@@ -32,7 +32,7 @@ export interface ImageFile {
 async function convertToWebp(
   file: File,
   quality = 0.9
-): Promise<{ url: string; size: number }> {
+): Promise<{ url: string; size: number; file: File }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -60,8 +60,16 @@ async function convertToWebp(
                 )
               );
             }
-            const url = URL.createObjectURL(blob);
-            resolve({ url, size: blob.size });
+            // If the new blob is larger than the original file, use the original file
+            if (blob.size > file.size) {
+              const url = URL.createObjectURL(file);
+              resolve({ url, size: file.size, file: file });
+              return;
+            }
+
+            const newFile = new File([blob], file.name.replace(/.[^/.]+$/, '.webp'), { type: 'image/webp' });
+            const url = URL.createObjectURL(newFile);
+            resolve({ url, size: newFile.size, file: newFile });
           },
           'image/webp',
           quality
@@ -92,7 +100,6 @@ export default function Home() {
           const img = new Image();
           img.onload = () => {
             resolve({ width: img.width, height: img.height });
-            URL.revokeObjectURL(img.src); // Revoke here after getting dimensions
           };
           img.src = URL.createObjectURL(file);
         });
@@ -124,16 +131,17 @@ export default function Home() {
     const pendingImages = images.filter((img) => img.status === 'pending');
     if (pendingImages.length === 0) return;
 
-    for (const imageFile of pendingImages) {
+    const processImage = async (imageFile: ImageFile) => {
       updateImageState(imageFile.id, { status: 'converting' });
       try {
-        const { url: convertedUrl, size: convertedSize } = await convertToWebp(
+        const { url: convertedUrl, size: convertedSize, file: convertedFile } = await convertToWebp(
           imageFile.file
         );
         updateImageState(imageFile.id, {
           convertedUrl,
           convertedSize,
           status: 'done',
+          file: convertedFile, // Store the potentially new file object
         });
       } catch (error) {
         console.error('Conversion failed for', imageFile.file.name, error);
@@ -151,11 +159,16 @@ export default function Home() {
           variant: 'destructive',
         });
       }
-    }
+    };
+    
+    await Promise.all(pendingImages.map(processImage));
+
   }, [images, updateImageState, toast]);
 
   useEffect(() => {
-    processQueue();
+    if(images.some(img => img.status === 'pending')) {
+      processQueue();
+    }
   }, [images, processQueue]);
 
   // Effect for cleaning up Object URLs when the component unmounts
@@ -170,9 +183,7 @@ export default function Home() {
         }
       });
     };
-    // This effect should only run once on unmount, so we pass an empty dependency array.
-    // The `images` array is available in the closure.
-  }, []);
+  }, [images]);
 
   const clearAll = () => {
     // Before clearing the state, revoke any existing URLs

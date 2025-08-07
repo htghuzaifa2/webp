@@ -12,7 +12,7 @@ interface ImageUploaderProps {
 }
 
 const MAX_FILES = 50;
-const MAX_FILE_SIZE_MB = 15;
+const MAX_FILE_SIZE_MB = 99;
 
 export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
