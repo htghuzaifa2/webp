@@ -99,8 +99,8 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
   return (
     <Card
       className={cn(
-        'border-2 border-dashed hover:border-primary transition-colors duration-300 bg-background/50 hover:bg-primary/5',
-        isDragging && 'border-primary bg-primary/10',
+        'border-2 border-dashed hover:border-primary transition-colors duration-300 bg-muted/20 hover:bg-accent/60',
+        isDragging && 'border-primary bg-accent',
         className
       )}
       onDragEnter={handleDragEnter}
@@ -113,7 +113,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
           htmlFor="file-upload"
           className="flex flex-col items-center justify-center space-y-4 cursor-pointer text-center group"
         >
-          <div className="rounded-full border-8 border-background bg-secondary p-4 text-primary transition-colors group-hover:bg-primary/10 group-hover:text-primary-foreground">
+          <div className={cn("p-4 rounded-full border-8 border-background bg-secondary text-primary transition-all duration-300 ease-in-out group-hover:scale-110 group-hover:bg-primary/10", isDragging && "scale-110 bg-primary/20")}>
             <UploadCloud className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div>

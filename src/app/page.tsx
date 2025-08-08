@@ -33,8 +33,12 @@ export interface ImageFile {
 
 async function convertToWebp(
   file: File
-): Promise<{ url: string; size: number; file: File, skipped: boolean }> {
+): Promise<{ url: string; size: number; file: File; skipped: boolean }> {
   return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+       return reject(new Error('File is not an image.'));
+    }
+
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -52,30 +56,23 @@ async function convertToWebp(
           return reject(new Error('Failed to get canvas context.'));
         }
 
-        // Determine quality based on original file size
-        let quality = 0.92; // High quality for smaller images
-        if (file.size > 2 * 1024 * 1024) { // > 2MB
-          quality = 0.8;
-        } else if (file.size > 1 * 1024 * 1024) { // > 1MB
+        let quality = 0.92;
+        if (file.size > 2 * 1024 * 1024) {
+          quality = 0.75;
+        } else if (file.size > 1 * 1024 * 1024) {
           quality = 0.85;
         }
-
 
         ctx.drawImage(img, 0, 0);
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-              return reject(
-                new Error(
-                  'Conversion failed. The image might be too large or in an unsupported format.'
-                )
-              );
+              return reject(new Error('Failed to create blob.'));
             }
-            
-            // If the new blob is larger than the original file, use the original file
+
             if (blob.size >= file.size) {
               const url = URL.createObjectURL(file);
-              resolve({ url, size: file.size, file: file, skipped: true });
+              resolve({ url, size: file.size, file, skipped: true });
               return;
             }
 
@@ -92,7 +89,7 @@ async function convertToWebp(
         );
       };
       img.onerror = () => {
-        reject(new Error('Failed to load image for conversion.'));
+        reject(new Error('Failed to load image. It might be corrupted or in an unsupported format.'));
       };
     };
     reader.onerror = () => {
@@ -107,12 +104,10 @@ export default function Home() {
   const [isZipping, setIsZipping] = useState(false);
 
   useEffect(() => {
-    // 3-minute timer to open huzi.pk
     const timer = setTimeout(() => {
       window.open('https://huzi.pk', '_blank');
-    }, 3 * 60 * 1000); // 3 minutes in milliseconds
+    }, 3 * 60 * 1000);
 
-    // Click counter logic
     const handleClick = () => {
       let currentCount = parseInt(localStorage.getItem('clickCount') || '0', 10);
       currentCount++;
@@ -181,12 +176,12 @@ export default function Home() {
           url: convertedUrl,
           size: convertedSize,
           file: convertedFile,
-          skipped
+          skipped,
         } = await convertToWebp(imageFile.file);
         updateImageState(imageFile.id, {
           convertedUrl,
           convertedSize,
-          convertedFile: convertedFile,
+          convertedFile,
           status: 'done',
           skipped,
         });
@@ -195,7 +190,7 @@ export default function Home() {
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'An unknown error occurred during conversion.';
+            : 'An unknown error occurred.';
         updateImageState(imageFile.id, {
           status: 'error',
           error: errorMessage,
@@ -220,12 +215,8 @@ export default function Home() {
   useEffect(() => {
     return () => {
       images.forEach((image) => {
-        if (image.originalUrl) {
-          URL.revokeObjectURL(image.originalUrl);
-        }
-        if (image.convertedUrl) {
-          URL.revokeObjectURL(image.convertedUrl);
-        }
+        if (image.originalUrl) URL.revokeObjectURL(image.originalUrl);
+        if (image.convertedUrl) URL.revokeObjectURL(image.convertedUrl);
       });
     };
   }, [images]);
@@ -245,7 +236,7 @@ export default function Home() {
     if (doneImages.length === 0) {
       toast({
         title: 'No images to download',
-        description: 'Please wait for images to be converted before downloading.',
+        description: 'Please convert images before downloading.',
         variant: 'destructive',
       });
       return;
@@ -256,7 +247,7 @@ export default function Home() {
 
     for (const image of doneImages) {
       if (image.convertedFile) {
-        const originalFilename = image.file.name.split('.').slice(0, -1).join('.');
+        const originalFilename = image.file.name.split('.').slice(0, -1).join('.') || image.file.name;
         const extension = image.skipped ? image.file.name.split('.').pop() : 'webp';
         zip.file(`${originalFilename}_optimized.${extension}`, image.convertedFile);
       }
@@ -266,14 +257,14 @@ export default function Home() {
       const content = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `webp-huzi-pk-optimized-images.zip`;
+      link.download = `webp-huzi-pk-images.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : 'Could not create the zip file.';
+        err instanceof Error ? err.message : 'Could not create ZIP file.';
       toast({
         title: 'ZIP Creation Failed',
         description: errorMessage,
@@ -302,10 +293,10 @@ export default function Home() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl md:text-3xl tracking-tight">
-                    WebP Optimizer
+                    WebP Converter & Optimizer
                   </CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Optimize and convert JPG, PNG, GIF images to high-quality WebP.
+                    Convert and optimize JPG, PNG, and GIF images to high-quality WebP format.
                   </CardDescription>
                 </div>
               </div>
@@ -323,7 +314,7 @@ export default function Home() {
                     <div className="flex-grow space-y-2">
                       <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
                         <p>
-                          {convertedCount} of {images.length} images processed.
+                          {convertedCount} of {images.length} images processed
                         </p>
                         <p>{Math.round(progress)}%</p>
                       </div>
@@ -333,14 +324,14 @@ export default function Home() {
                       {canDownloadAll && (
                         <Button
                           onClick={downloadAllAsZip}
-                          variant="outline"
                           disabled={isZipping}
+                          size="lg"
                         >
                           <Archive className="mr-2" />
                           {isZipping ? 'Zipping...' : 'Download ZIP'}
                         </Button>
                       )}
-                      <Button onClick={clearAll} variant="destructive">
+                      <Button onClick={clearAll} variant="destructive" size="lg">
                         <Trash2 className="mr-2" />
                         Clear All
                       </Button>

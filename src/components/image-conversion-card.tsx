@@ -42,7 +42,7 @@ function formatBytes(bytes: number, decimals = 2) {
 
 export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
   const compressionPercentage =
-    imageFile.originalSize && imageFile.convertedSize
+    imageFile.originalSize && imageFile.convertedSize && imageFile.convertedSize < imageFile.originalSize
       ? (
           ((imageFile.originalSize - imageFile.convertedSize) /
             imageFile.originalSize) *
@@ -126,29 +126,29 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground text-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <p className="capitalize text-xs font-semibold">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="capitalize text-sm font-semibold tracking-wider">
                     {imageFile.status}...
                   </p>
                 </div>
               )}
             </Card>
-            {isDone && imageFile.convertedSize ? (
+            {isDone && imageFile.convertedSize !== undefined ? (
               <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">
                   {formatBytes(imageFile.convertedSize)}
                 </span>
                 {imageFile.skipped ? (
                    <Badge variant="secondary" className="font-normal">
-                    Already optimal
+                    Original is smaller
                   </Badge>
                 ) : (
                   <Badge
                      variant={isOptimizedSmaller ? 'default' : 'secondary'}
-                     className={cn(isOptimizedSmaller && 'bg-accent text-accent-foreground')}
+                     className={cn(isOptimizedSmaller && 'bg-green-600/90 text-primary-foreground')}
                   >
-                    {isOptimizedSmaller ? '-' : '+'}
-                    {Math.abs(Number(compressionPercentage))}%
+                    -
+                    {compressionPercentage}%
                   </Badge>
                 )}
               </div>
@@ -171,7 +171,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
           </Alert>
         )}
         {imageFile.skipped && (
-            <Alert variant="default" className="mt-4 border-accent/50 text-accent-foreground [&>svg]:text-accent">
+            <Alert variant="default" className="mt-4">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Already Optimized</AlertTitle>
                 <AlertDescription className="text-xs">
