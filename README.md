@@ -1,1 +1,1 @@
-another great open source project by huzi.pk aka HTG HUZAIFA.
+Another great open source project by huzi.pk aka HTG HUZAIFA.
