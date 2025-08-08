@@ -242,15 +242,17 @@ export default function Home() {
     const zip = new JSZip();
 
     for (const image of doneImages) {
-      const originalFilename = image.file.name.split('.').slice(0, -1).join('.');
-      zip.file(`${originalFilename}_optimized.webp`, image.convertedFile!);
+      if (image.convertedFile) {
+        const originalFilename = image.file.name.split('.').slice(0, -1).join('.');
+        zip.file(`${originalFilename}_optimized.webp`, image.convertedFile);
+      }
     }
 
     try {
       const content = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `webp.huzi.pk_images.zip`;
+      link.download = `webp-huzi-pk-images.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -289,7 +291,7 @@ export default function Home() {
                     WebP Optimizer
                   </CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Convert images to WebP online. Free & private.
+                    Convert JPG, PNG, and GIF to WebP online. Free & private.
                   </CardDescription>
                 </div>
               </div>
@@ -321,7 +323,7 @@ export default function Home() {
                           disabled={isZipping}
                         >
                           <Archive className="mr-2" />
-                          {isZipping ? 'Zipping...' : 'Download All (ZIP)'}
+                          {isZipping ? 'Zipping...' : 'Download ZIP'}
                         </Button>
                       )}
                       <Button onClick={clearAll} variant="destructive">
