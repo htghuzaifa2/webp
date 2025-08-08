@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://webp.huzi.pk'),
   title: 'WebP Converter & Optimizer - webp.huzi.pk',
   description:
-    'Convert JPG, PNG, GIF to WebP online. Fast, free, and private image optimization.',
+    'Convert images to WebP online. Free, fast, and private image optimization.',
   keywords: [
     'WebP converter',
     'image optimizer',
@@ -62,7 +62,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
