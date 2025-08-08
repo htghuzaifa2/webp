@@ -145,7 +145,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 ) : (
                   <Badge
                      variant={isOptimizedSmaller ? 'default' : 'secondary'}
-                     className={cn(isOptimizedSmaller && 'bg-green-600/90 text-primary-foreground')}
+                     className={cn(isOptimizedSmaller && 'bg-primary text-primary-foreground')}
                   >
                     -
                     {compressionPercentage}%
@@ -171,7 +171,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
           </Alert>
         )}
         {imageFile.skipped && (
-            <Alert variant="default" className="mt-4">
+            <Alert variant="default" className="mt-4 border-primary/20">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Already Optimized</AlertTitle>
                 <AlertDescription className="text-xs">
