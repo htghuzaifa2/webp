@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Download,
   FileText,
+  Info,
   Loader2,
   Sparkles,
 } from 'lucide-react';
@@ -50,20 +51,22 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
       : 0;
 
   const handleDownload = () => {
-    if (!imageFile.convertedUrl) return;
+    if (!imageFile.convertedUrl || !imageFile.convertedFile) return;
     const link = document.createElement('a');
     link.href = imageFile.convertedUrl;
     const originalFilename = imageFile.file.name
       .split('.')
       .slice(0, -1)
       .join('.');
-    link.download = `${originalFilename}_optimized.webp`;
+    const extension = imageFile.skipped ? imageFile.file.name.split('.').pop() : 'webp';
+    link.download = `${originalFilename}_optimized.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
   
   const isOptimizedSmaller = imageFile.convertedSize ? imageFile.convertedSize < imageFile.originalSize : false;
+  const isDone = imageFile.status === 'done';
 
   return (
     <Card className="overflow-hidden w-full shadow-md animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
@@ -104,15 +107,15 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-center text-muted-foreground flex items-center justify-center gap-1.5">
               <Sparkles className="w-4 h-4 text-primary" />
-              Optimized WebP
+              Optimized
             </h3>
             <Card
               className={cn(
                 'aspect-video relative overflow-hidden flex items-center justify-center bg-muted/50 rounded-lg',
-                imageFile.status === 'done' && 'animate-in fade-in-0 duration-500'
+                isDone && 'animate-in fade-in-0 duration-500'
               )}
             >
-              {imageFile.status === 'done' && imageFile.convertedUrl ? (
+              {isDone && imageFile.convertedUrl ? (
                 <Image
                   src={imageFile.convertedUrl}
                   alt="Converted image preview"
@@ -130,18 +133,24 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 </div>
               )}
             </Card>
-            {imageFile.status === 'done' && imageFile.convertedSize ? (
+            {isDone && imageFile.convertedSize ? (
               <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">
                   {formatBytes(imageFile.convertedSize)}
                 </span>
-                <Badge
-                   variant={isOptimizedSmaller ? 'default' : 'secondary'}
-                   className={cn(isOptimizedSmaller && 'bg-accent text-accent-foreground')}
-                >
-                  {isOptimizedSmaller ? '-' : '+'}
-                  {Math.abs(Number(compressionPercentage))}%
-                </Badge>
+                {imageFile.skipped ? (
+                   <Badge variant="secondary" className="font-normal">
+                    Already optimal
+                  </Badge>
+                ) : (
+                  <Badge
+                     variant={isOptimizedSmaller ? 'default' : 'secondary'}
+                     className={cn(isOptimizedSmaller && 'bg-accent text-accent-foreground')}
+                  >
+                    {isOptimizedSmaller ? '-' : '+'}
+                    {Math.abs(Number(compressionPercentage))}%
+                  </Badge>
+                )}
               </div>
             ) : (
               <div className="flex justify-between items-center text-sm mt-2">
@@ -161,8 +170,17 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
             </AlertDescription>
           </Alert>
         )}
+        {imageFile.skipped && (
+            <Alert variant="default" className="mt-4 border-accent/50 text-accent-foreground [&>svg]:text-accent">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Already Optimized</AlertTitle>
+                <AlertDescription className="text-xs">
+                The original image was smaller than the converted WebP, so the original has been kept.
+                </AlertDescription>
+            </Alert>
+        )}
       </CardContent>
-      {imageFile.status === 'done' && (
+      {isDone && (
         <CardFooter className="bg-muted/50 p-3 flex justify-end">
           <Button onClick={handleDownload} size="sm">
             <Download className="mr-2 h-4 w-4" />

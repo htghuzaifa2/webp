@@ -28,12 +28,12 @@ export interface ImageFile {
   status: 'pending' | 'converting' | 'done' | 'error';
   error?: string;
   dimensions?: { width: number; height: number };
+  skipped?: boolean;
 }
 
 async function convertToWebp(
-  file: File,
-  quality = 0.9
-): Promise<{ url: string; size: number; file: File }> {
+  file: File
+): Promise<{ url: string; size: number; file: File, skipped: boolean }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -51,20 +51,31 @@ async function convertToWebp(
         if (!ctx) {
           return reject(new Error('Failed to get canvas context.'));
         }
+
+        // Determine quality based on original file size
+        let quality = 0.92; // High quality for smaller images
+        if (file.size > 2 * 1024 * 1024) { // > 2MB
+          quality = 0.8;
+        } else if (file.size > 1 * 1024 * 1024) { // > 1MB
+          quality = 0.85;
+        }
+
+
         ctx.drawImage(img, 0, 0);
         canvas.toBlob(
           (blob) => {
             if (!blob) {
               return reject(
                 new Error(
-                  'Canvas toBlob returned null. The image might be too large or from a protected source.'
+                  'Conversion failed. The image might be too large or in an unsupported format.'
                 )
               );
             }
+            
             // If the new blob is larger than the original file, use the original file
-            if (blob.size > file.size) {
+            if (blob.size >= file.size) {
               const url = URL.createObjectURL(file);
-              resolve({ url, size: file.size, file: file });
+              resolve({ url, size: file.size, file: file, skipped: true });
               return;
             }
 
@@ -74,7 +85,7 @@ async function convertToWebp(
               { type: 'image/webp' }
             );
             const url = URL.createObjectURL(newFile);
-            resolve({ url, size: newFile.size, file: newFile });
+            resolve({ url, size: newFile.size, file: newFile, skipped: false });
           },
           'image/webp',
           quality
@@ -170,12 +181,14 @@ export default function Home() {
           url: convertedUrl,
           size: convertedSize,
           file: convertedFile,
-        } = await convertToWebp(imageFile.file, 0.9);
+          skipped
+        } = await convertToWebp(imageFile.file);
         updateImageState(imageFile.id, {
           convertedUrl,
           convertedSize,
           convertedFile: convertedFile,
           status: 'done',
+          skipped,
         });
       } catch (error) {
         console.error('Conversion failed for', imageFile.file.name, error);
@@ -244,7 +257,8 @@ export default function Home() {
     for (const image of doneImages) {
       if (image.convertedFile) {
         const originalFilename = image.file.name.split('.').slice(0, -1).join('.');
-        zip.file(`${originalFilename}_optimized.webp`, image.convertedFile);
+        const extension = image.skipped ? image.file.name.split('.').pop() : 'webp';
+        zip.file(`${originalFilename}_optimized.${extension}`, image.convertedFile);
       }
     }
 
@@ -252,7 +266,7 @@ export default function Home() {
       const content = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `webp-huzi-pk-images.zip`;
+      link.download = `webp-huzi-pk-optimized-images.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -270,7 +284,7 @@ export default function Home() {
     }
   };
 
-  const convertedCount = images.filter((img) => img.status === 'done').length;
+  const convertedCount = images.filter((img) => img.status === 'done' || img.status === 'error').length;
   const progress =
     images.length > 0 ? (convertedCount / images.length) * 100 : 0;
   const canDownloadAll = convertedCount > 1 && progress === 100;
@@ -291,7 +305,7 @@ export default function Home() {
                     WebP Optimizer
                   </CardTitle>
                   <CardDescription className="text-base mt-1">
-                    Convert JPG, PNG, and GIF to WebP online. Free & private.
+                    Optimize and convert JPG, PNG, GIF images to high-quality WebP.
                   </CardDescription>
                 </div>
               </div>
@@ -309,7 +323,7 @@ export default function Home() {
                     <div className="flex-grow space-y-2">
                       <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
                         <p>
-                          {convertedCount} of {images.length} images converted.
+                          {convertedCount} of {images.length} images processed.
                         </p>
                         <p>{Math.round(progress)}%</p>
                       </div>
