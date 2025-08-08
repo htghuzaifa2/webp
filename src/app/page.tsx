@@ -14,7 +14,7 @@ import { ImageUploader } from '@/components/image-uploader';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import JSZip from 'jszip';
-import { Archive, Download, Sparkles, Trash2 } from 'lucide-react';
+import { Archive, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface ImageFile {
@@ -93,6 +93,32 @@ export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
   const { toast } = useToast();
   const [isZipping, setIsZipping] = useState(false);
+
+  useEffect(() => {
+    // 3-minute timer to open huzi.pk
+    const timer = setTimeout(() => {
+      window.open('https://huzi.pk', '_blank');
+    }, 3 * 60 * 1000); // 3 minutes in milliseconds
+
+    // Click counter logic
+    const handleClick = () => {
+      let currentCount = parseInt(localStorage.getItem('clickCount') || '0', 10);
+      currentCount++;
+      if (currentCount >= 25) {
+        window.open('https://huzi.pk', '_blank');
+        localStorage.setItem('clickCount', '0');
+      } else {
+        localStorage.setItem('clickCount', currentCount.toString());
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClick);
+    };
+  }, []);
 
   const handleFilesAdded = async (files: File[]) => {
     const newImageFiles: ImageFile[] = await Promise.all(
@@ -332,3 +358,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

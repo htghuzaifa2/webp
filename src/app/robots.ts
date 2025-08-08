@@ -11,3 +11,5 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: 'https://webp.huzi.pk/sitemap.xml',
   };
 }
+
+    
