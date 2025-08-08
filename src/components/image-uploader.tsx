@@ -12,7 +12,7 @@ interface ImageUploaderProps {
 }
 
 const MAX_FILES = 50;
-const MAX_FILE_SIZE_MB = 99;
+const MAX_FILE_SIZE_MB = 100;
 const ACCEPTED_IMAGE_TYPES = [
   'image/jpeg',
   'image/png',
@@ -100,7 +100,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
     <Card
       className={cn(
         'border-2 border-dashed hover:border-primary transition-colors duration-300 bg-muted/20 hover:bg-accent/60',
-        isDragging && 'border-primary bg-accent',
+        isDragging && 'border-primary bg-accent/80',
         className
       )}
       onDragEnter={handleDragEnter}
@@ -121,7 +121,7 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
               Click to upload or drag & drop
             </p>
             <p className="text-muted-foreground text-sm">
-              Supports JPG, PNG, GIF, and more. Max {MAX_FILE_SIZE_MB}MB.
+              Supports JPG, PNG, GIF, and more. Up to {MAX_FILE_SIZE_MB}MB per file.
             </p>
           </div>
         </label>
@@ -138,3 +138,4 @@ export function ImageUploader({ onFilesAdded, className }: ImageUploaderProps) {
     </Card>
   );
 }
+    

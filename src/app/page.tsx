@@ -56,11 +56,13 @@ async function convertToWebp(
           return reject(new Error('Failed to get canvas context.'));
         }
 
-        let quality = 0.92;
-        if (file.size > 2 * 1024 * 1024) {
-          quality = 0.75;
-        } else if (file.size > 1 * 1024 * 1024) {
-          quality = 0.85;
+        let quality = 0.85; // Default quality
+        if (file.size > 4 * 1024 * 1024) {
+          quality = 0.7; // Lower quality for very large files
+        } else if (file.size > 2 * 1024 * 1024) {
+          quality = 0.75; // Medium quality for large files
+        } else if (file.size < 500 * 1024) {
+          quality = 0.9; // Higher quality for smaller files
         }
 
         ctx.drawImage(img, 0, 0);
@@ -70,6 +72,7 @@ async function convertToWebp(
               return reject(new Error('Failed to create blob.'));
             }
 
+            // If the converted image is larger or equal in size, use the original
             if (blob.size >= file.size) {
               const url = URL.createObjectURL(file);
               resolve({ url, size: file.size, file, skipped: true });
@@ -231,12 +234,12 @@ export default function Home() {
 
   const downloadAllAsZip = async () => {
     const doneImages = images.filter(
-      (img) => img.status === 'done' && img.convertedFile
+      (img) => img.status === 'done' && (img.convertedFile || img.skipped)
     );
     if (doneImages.length === 0) {
       toast({
         title: 'No images to download',
-        description: 'Please convert images before downloading.',
+        description: 'Please convert some images first.',
         variant: 'destructive',
       });
       return;
@@ -246,10 +249,11 @@ export default function Home() {
     const zip = new JSZip();
 
     for (const image of doneImages) {
-      if (image.convertedFile) {
+      const fileToZip = image.skipped ? image.file : image.convertedFile;
+      if (fileToZip) {
         const originalFilename = image.file.name.split('.').slice(0, -1).join('.') || image.file.name;
         const extension = image.skipped ? image.file.name.split('.').pop() : 'webp';
-        zip.file(`${originalFilename}_optimized.${extension}`, image.convertedFile);
+        zip.file(`${originalFilename}.${extension}`, fileToZip);
       }
     }
 
@@ -279,12 +283,24 @@ export default function Home() {
   const progress =
     images.length > 0 ? (convertedCount / images.length) * 100 : 0;
   const canDownloadAll = convertedCount > 1 && progress === 100;
+  const totalOriginalSize = images.reduce((acc, img) => acc + (img.originalSize || 0), 0);
+  const totalConvertedSize = images.reduce((acc, img) => acc + (img.convertedSize || 0), 0);
+  const totalSavings = totalOriginalSize > 0 ? ((totalOriginalSize - totalConvertedSize) / totalOriginalSize) * 100 : 0;
+  const totalSavingsBytes = totalOriginalSize - totalConvertedSize;
+  
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background font-sans">
       <Header />
       <main className="flex-1 container mx-auto p-4 md:p-8">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-5xl mx-auto space-y-8">
           <Card className="shadow-lg border-primary/20 animate-in fade-in-0 duration-500">
             <CardHeader>
               <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -295,8 +311,8 @@ export default function Home() {
                   <CardTitle className="text-2xl md:text-3xl tracking-tight">
                     WebP Converter & Optimizer
                   </CardTitle>
-                  <CardDescription className="text-base mt-1">
-                    Convert and optimize JPG, PNG, and GIF images to high-quality WebP format.
+                  <CardDescription className="text-base mt-1 text-muted-foreground">
+                    Batch convert and optimize JPG, PNG, and GIF images to high-quality WebP format.
                   </CardDescription>
                 </div>
               </div>
@@ -316,6 +332,11 @@ export default function Home() {
                         <p>
                           {convertedCount} of {images.length} images processed
                         </p>
+                         {progress === 100 && totalSavings > 0 && (
+                          <p className="font-semibold text-primary">
+                            Total savings: {totalSavings.toFixed(1)}% ({formatBytes(totalSavingsBytes)})
+                          </p>
+                        )}
                         <p>{Math.round(progress)}%</p>
                       </div>
                       <Progress value={progress} />
@@ -340,7 +361,7 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {images.map((image) => (
                   <ImageConversionCard key={image.id} imageFile={image} />
                 ))}
@@ -364,3 +385,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

@@ -52,14 +52,15 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
 
   const handleDownload = () => {
     if (!imageFile.convertedUrl || !imageFile.convertedFile) return;
+    const fileToDownload = imageFile.skipped ? imageFile.originalUrl : imageFile.convertedUrl;
     const link = document.createElement('a');
-    link.href = imageFile.convertedUrl;
+    link.href = fileToDownload;
     const originalFilename = imageFile.file.name
       .split('.')
       .slice(0, -1)
       .join('.');
     const extension = imageFile.skipped ? imageFile.file.name.split('.').pop() : 'webp';
-    link.download = `${originalFilename}_optimized.${extension}`;
+    link.download = `${originalFilename}.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -69,14 +70,14 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
   const isDone = imageFile.status === 'done';
 
   return (
-    <Card className="overflow-hidden w-full shadow-md animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+    <Card className="overflow-hidden w-full shadow-md animate-in fade-in-0 slide-in-from-bottom-4 duration-500 flex flex-col">
       <CardHeader className="p-4 bg-muted/50 border-b">
         <CardTitle className="truncate flex items-center gap-2 text-base">
           <FileText className="h-4 w-4 flex-shrink-0" />
           <span className="truncate font-normal">{imageFile.file.name}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-4 space-y-4 flex-grow">
         <div className="grid grid-cols-2 gap-4 items-start">
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-center text-muted-foreground">
@@ -87,7 +88,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 src={imageFile.originalUrl}
                 alt="Original image preview"
                 fill
-                sizes="(max-width: 768px) 100vw, 50vw"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 style={{ objectFit: 'contain' }}
                 data-ai-hint="original image"
               />
@@ -120,7 +121,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                   src={imageFile.convertedUrl}
                   alt="Converted image preview"
                   fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   style={{ objectFit: 'contain' }}
                   data-ai-hint="converted image"
                 />
@@ -175,13 +176,13 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Already Optimized</AlertTitle>
                 <AlertDescription className="text-xs">
-                The original image was smaller than the converted WebP, so the original has been kept.
+                The original file is smaller than the converted WebP. The original has been kept.
                 </AlertDescription>
             </Alert>
         )}
       </CardContent>
       {isDone && (
-        <CardFooter className="bg-muted/50 p-3 flex justify-end">
+        <CardFooter className="bg-muted/50 p-3 flex justify-end mt-auto">
           <Button onClick={handleDownload} size="sm">
             <Download className="mr-2 h-4 w-4" />
             Download
@@ -191,3 +192,5 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
     </Card>
   );
 }
+
+    
