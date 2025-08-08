@@ -22,6 +22,7 @@ export interface ImageFile {
   file: File;
   originalUrl: string;
   convertedUrl?: string;
+  convertedFile?: File;
   originalSize: number;
   convertedSize?: number;
   status: 'pending' | 'converting' | 'done' | 'error';
@@ -173,8 +174,8 @@ export default function Home() {
         updateImageState(imageFile.id, {
           convertedUrl,
           convertedSize,
+          convertedFile: convertedFile,
           status: 'done',
-          file: convertedFile,
         });
       } catch (error) {
         console.error('Conversion failed for', imageFile.file.name, error);
@@ -226,47 +227,45 @@ export default function Home() {
 
   const downloadAllAsZip = async () => {
     const doneImages = images.filter(
-      (img) => img.status === 'done' && img.convertedUrl
+      (img) => img.status === 'done' && img.convertedFile
     );
-    if (doneImages.length === 0) return;
+    if (doneImages.length === 0) {
+      toast({
+        title: 'No images to download',
+        description: 'Please wait for images to be converted before downloading.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsZipping(true);
     const zip = new JSZip();
 
-    await Promise.all(
-      doneImages.map(async (image) => {
-        const response = await fetch(image.convertedUrl!);
-        const blob = await response.blob();
+    for (const image of doneImages) {
+      const originalFilename = image.file.name.split('.').slice(0, -1).join('.');
+      zip.file(`${originalFilename}_optimized.webp`, image.convertedFile!);
+    }
 
-        const originalFilename = image.file.name
-          .split('.')
-          .slice(0, -1)
-          .join('.');
-        zip.file(`${originalFilename}_optimized.webp`, blob);
-      })
-    );
-
-    zip
-      .generateAsync({ type: 'blob' })
-      .then((content) => {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(content);
-        link.download = `WebpImageOptim_Batch_${new Date().getTime()}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-      })
-      .catch((err) => {
-        toast({
-          title: 'ZIP Creation Failed',
-          description: err.message || 'Could not create the zip file.',
-          variant: 'destructive',
-        });
-      })
-      .finally(() => {
-        setIsZipping(false);
+    try {
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `webp.huzi.pk_images.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Could not create the zip file.';
+      toast({
+        title: 'ZIP Creation Failed',
+        description: errorMessage,
+        variant: 'destructive',
       });
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   const convertedCount = images.filter((img) => img.status === 'done').length;
@@ -358,5 +357,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
