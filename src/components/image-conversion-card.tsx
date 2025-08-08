@@ -137,7 +137,7 @@ export function ImageConversionCard({ imageFile }: ImageConversionCardProps) {
                 </span>
                 <Badge
                    variant={isOptimizedSmaller ? 'default' : 'secondary'}
-                   className={cn(isOptimizedSmaller && 'bg-green-600/80 text-white')}
+                   className={cn(isOptimizedSmaller && 'bg-orange-600/80 text-white')}
                 >
                   {isOptimizedSmaller ? '-' : '+'}
                   {Math.abs(Number(compressionPercentage))}%
