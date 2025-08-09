@@ -56,13 +56,13 @@ async function convertToWebp(
           return reject(new Error('Failed to get canvas context.'));
         }
 
-        let quality = 0.85; // Default quality
+        let quality = 0.85;
         if (file.size > 4 * 1024 * 1024) {
-          quality = 0.7; // Lower quality for very large files
+          quality = 0.7;
         } else if (file.size > 2 * 1024 * 1024) {
-          quality = 0.75; // Medium quality for large files
+          quality = 0.75;
         } else if (file.size < 500 * 1024) {
-          quality = 0.9; // Higher quality for smaller files
+          quality = 0.9;
         }
 
         ctx.drawImage(img, 0, 0);
@@ -72,7 +72,6 @@ async function convertToWebp(
               return reject(new Error('Failed to create blob.'));
             }
 
-            // If the converted image is larger or equal in size, use the original
             if (blob.size >= file.size) {
               const url = URL.createObjectURL(file);
               resolve({ url, size: file.size, file, skipped: true });
@@ -105,30 +104,6 @@ export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
   const { toast } = useToast();
   const [isZipping, setIsZipping] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      window.open('https://huzi.pk', '_blank');
-    }, 3 * 60 * 1000);
-
-    const handleClick = () => {
-      let currentCount = parseInt(localStorage.getItem('clickCount') || '0', 10);
-      currentCount++;
-      if (currentCount >= 25) {
-        window.open('https://huzi.pk', '_blank');
-        localStorage.setItem('clickCount', '0');
-      } else {
-        localStorage.setItem('clickCount', currentCount.toString());
-      }
-    };
-
-    document.addEventListener('click', handleClick);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', handleClick);
-    };
-  }, []);
 
   const handleFilesAdded = async (files: File[]) => {
     const newImageFiles: ImageFile[] = await Promise.all(
@@ -284,7 +259,7 @@ export default function Home() {
     images.length > 0 ? (convertedCount / images.length) * 100 : 0;
   const canDownloadAll = convertedCount > 1 && progress === 100;
   const totalOriginalSize = images.reduce((acc, img) => acc + (img.originalSize || 0), 0);
-  const totalConvertedSize = images.reduce((acc, img) => acc + (img.convertedSize || 0), 0);
+  const totalConvertedSize = images.reduce((acc, img) => acc + (img.convertedSize || img.originalSize || 0), 0);
   const totalSavings = totalOriginalSize > 0 ? ((totalOriginalSize - totalConvertedSize) / totalOriginalSize) * 100 : 0;
   const totalSavingsBytes = totalOriginalSize - totalConvertedSize;
   
@@ -312,7 +287,7 @@ export default function Home() {
                     WebP Converter & Optimizer
                   </CardTitle>
                   <CardDescription className="text-base mt-1 text-muted-foreground">
-                    Batch convert and optimize JPG, PNG, and GIF images to high-quality WebP format.
+                    Batch convert and optimize images to high-quality WebP format.
                   </CardDescription>
                 </div>
               </div>
@@ -385,5 +360,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
