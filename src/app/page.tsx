@@ -57,13 +57,14 @@ async function convertToWebp(
         }
 
         let quality = 0.85;
-        if (file.size > 4 * 1024 * 1024) {
+        if (file.size > 4 * 1024 * 1024) { // 4MB
           quality = 0.7;
-        } else if (file.size > 2 * 1024 * 1024) {
+        } else if (file.size > 2 * 1024 * 1024) { // 2MB
           quality = 0.75;
-        } else if (file.size < 500 * 1024) {
+        } else if (file.size < 500 * 1024) { // 500KB
           quality = 0.9;
         }
+
 
         ctx.drawImage(img, 0, 0);
         canvas.toBlob(
@@ -104,6 +105,36 @@ export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
   const { toast } = useToast();
   const [isZipping, setIsZipping] = useState(false);
+
+  useEffect(() => {
+    const handleClick = () => {
+      const storedClicks = localStorage.getItem('userClickCount');
+      let clickCount = storedClicks ? parseInt(storedClicks, 10) : 0;
+      clickCount++;
+
+      const initialRedirectDone = localStorage.getItem('initialRedirectDone');
+
+      if (!initialRedirectDone) {
+        if (clickCount >= 25) {
+          window.open('https://huzi.pk', '_blank');
+          localStorage.setItem('initialRedirectDone', 'true');
+          clickCount = 0; 
+        }
+      } else {
+        if (clickCount >= 55) {
+          window.open('https://huzi.pk', '_blank');
+          clickCount = 0;
+        }
+      }
+      localStorage.setItem('userClickCount', clickCount.toString());
+    };
+
+    document.addEventListener('click', handleClick);
+
+    return () => {
+      document.removeEventListener('click', handleClick);
+    };
+  }, []);
 
   const handleFilesAdded = async (files: File[]) => {
     const newImageFiles: ImageFile[] = await Promise.all(
