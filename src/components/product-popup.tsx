@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,7 +17,7 @@ interface Product {
   imageUrl: string;
 }
 
-const DISMISS_COOLDOWN = 60 * 1000; // 60 seconds in milliseconds
+const DISMISS_COOLDOWN = 60 * 1000; // 60 seconds
 const INITIAL_APPEAR_DELAY = 10 * 1000; // 10 seconds
 const PRODUCT_ROTATION_INTERVAL = 30 * 1000; // 30 seconds
 
@@ -26,9 +26,14 @@ export function ProductPopup() {
   const [isVisible, setIsVisible] = useState(false);
   const [isFading, setIsFading] = useState(false);
 
-  const getRandomProduct = () => {
+  const getRandomProduct = useCallback(() => {
     return products[Math.floor(Math.random() * products.length)];
-  };
+  }, []);
+
+  const showPopup = useCallback(() => {
+    setProduct(getRandomProduct());
+    setIsVisible(true);
+  }, [getRandomProduct]);
 
   useEffect(() => {
     // This effect should only run on the client
@@ -36,46 +41,51 @@ export function ProductPopup() {
       return;
     }
 
-    const dismissedUntil = localStorage.getItem('product-popup-dismissed-until');
-    if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) {
-      const timeout = setTimeout(() => {
-        setProduct(getRandomProduct());
-        setIsVisible(true);
-      }, parseInt(dismissedUntil, 10) - Date.now());
-      return () => clearTimeout(timeout);
-    }
+    let initialTimer: NodeJS.Timeout;
+    let rotationInterval: NodeJS.Timeout;
 
-    const initialTimer = setTimeout(() => {
-      setProduct(getRandomProduct());
-      setIsVisible(true);
-    }, INITIAL_APPEAR_DELAY);
+    const checkAndShow = () => {
+      const dismissedUntil = localStorage.getItem('product-popup-dismissed-until');
+      const now = Date.now();
 
-    const rotationInterval = setInterval(() => {
-      // Check isVisible directly from state, no need for passing it
-      setIsVisible(currentIsVisible => {
-        if (!currentIsVisible) return false;
+      if (dismissedUntil && now < parseInt(dismissedUntil, 10)) {
+        // We are in a cooldown period. Set a timer to re-check when it's over.
+        const delay = parseInt(dismissedUntil, 10) - now;
+        initialTimer = setTimeout(checkAndShow, delay);
+      } else {
+        // Not in cooldown, show the popup after the initial delay.
+        initialTimer = setTimeout(showPopup, INITIAL_APPEAR_DELAY);
+      }
+    };
 
-        setIsFading(true);
-        setTimeout(() => {
-          setProduct(prevProduct => {
-            let newProduct = getRandomProduct();
-            while (newProduct.slug === prevProduct?.slug) {
-              newProduct = getRandomProduct();
-            }
-            return newProduct;
-          });
-          setIsFading(false);
-        }, 500);
-        
-        return true;
-      });
+    checkAndShow();
+    
+    // Set up product rotation
+    rotationInterval = setInterval(() => {
+        setIsVisible(currentIsVisible => {
+            if (!currentIsVisible) return false;
+
+            setIsFading(true);
+            setTimeout(() => {
+                setProduct(prevProduct => {
+                    let newProduct = getRandomProduct();
+                    while (newProduct?.slug === prevProduct?.slug) {
+                        newProduct = getRandomProduct();
+                    }
+                    return newProduct;
+                });
+                setIsFading(false);
+            }, 500);
+            
+            return true;
+        });
     }, PRODUCT_ROTATION_INTERVAL);
 
     return () => {
       clearTimeout(initialTimer);
       clearInterval(rotationInterval);
     };
-  }, []); // Empty dependency array ensures this runs once on mount
+  }, [showPopup, getRandomProduct]);
 
   const handleDismiss = () => {
     setIsFading(true);
@@ -84,6 +94,12 @@ export function ProductPopup() {
       setIsFading(false);
       const dismissedUntil = Date.now() + DISMISS_COOLDOWN;
       localStorage.setItem('product-popup-dismissed-until', dismissedUntil.toString());
+
+      // Set a timer to try showing the popup again after the cooldown
+      setTimeout(() => {
+        showPopup();
+      }, DISMISS_COOLDOWN);
+
     }, 500);
   };
 
