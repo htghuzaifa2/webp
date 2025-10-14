@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import '@/lib/prefetch.js';
+import { ProductPopupProvider } from '@/components/product-popup-provider';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -81,6 +82,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <ProductPopupProvider />
         </ThemeProvider>
       </body>
     </html>
