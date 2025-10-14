@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import '@/lib/prefetch.js';
 import { ProductPopupProvider } from '@/components/product-popup-provider';
+import { ScrollToTop } from '@/components/scroll-to-top';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -83,6 +84,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           <ProductPopupProvider />
+          <ScrollToTop />
         </ThemeProvider>
       </body>
     </html>
